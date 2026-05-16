@@ -1,0 +1,18 @@
+---
+required_concepts: [":WebApp:"]
+description: Shared web-agent HTTP contract concepts for the dental voice receptionist project. Imported by the web and voice-agent modules.
+---
+
+***definitions***
+- :WebAgentHttpContract: is the set of JSON HTTP APIs that the voice-agent worker calls on :WebApp: while handling a :Call:. The contract is implemented by :WebApp: and consumed by the voice-agent worker.
+- :PracticeContextAPI: is the read-only part of :WebAgentHttpContract: used by the voice-agent worker to load :Practice:, :Service:, and :Staff: context at the beginning of a :Call:. It includes `GET /api/practice`, `GET /api/services`, and `GET /api/staff`.
+- :BookingAPI: is the part of :WebAgentHttpContract: used by the voice-agent worker to find availability and create :Appointment: records. It includes `GET /api/availability` and `POST /api/appointments`.
+- :CallLifecycleAPI: is the part of :WebAgentHttpContract: used to create, update, and finish :Call: records. It includes `POST /api/calls`, `POST /api/calls/:id/transcript`, `POST /api/calls/:id/end`, `GET /api/calls`, and `GET /api/calls/:id`.
+- :LiveKitTokenAPI: is the part of :WebAgentHttpContract: used by browser clients to request LiveKit room access through :WebApp:. It includes `POST /api/livekit/token`.
+
+***implementation reqs***
+- :Implementation: should keep request and response field names in :WebAgentHttpContract: stable across web and voice-agent implementations.
+- :Implementation: should treat non-2xx HTTP responses from :WebAgentHttpContract: as structured JSON errors when a response body is present.
+
+***test reqs***
+- :ConformanceTests: for modules that import this contract should verify that every endpoint they implement or consume uses the request and response shapes named in :WebAgentHttpContract:.

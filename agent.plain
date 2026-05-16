@@ -1,6 +1,7 @@
 ---
 import:
   - practice_domain
+  - web_agent_contract
 description: "Python LiveKit voice agent worker for the dental voice receptionist MVP. Joins a LiveKit room when a simulated call starts, greets the patient, answers questions about services, staff, and hours in English, and books appointments through a STT to LLM to TTS pipeline."
 ---
 
