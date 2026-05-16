@@ -60,13 +60,21 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   ***acceptance tests***
   - After a valid `PUT /api/practice`, a later `GET /api/practice` after a :WebApp: restart should return the saved practice JSON.
   - A `PUT /api/practice` request with an empty `name` should return HTTP 400 and should not overwrite the previously saved practice row.
-- Add the admin practice page to :WebApp: at the route `GET /admin/practice`.
-  - The page is an HTML page that lets :PracticeAdmin: view the single :Practice: row in an editable form. No submit action is wired yet by this spec.
-  - On page load the page calls `GET /api/practice` and pre-fills its form fields with the returned values; if the response is `{}` all fields start empty.
-  - The form has labelled text inputs for `name`, `address`, and `phoneDisplay`, a repeatable list of HoursOfOperation rows where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` input, and a `closeTime` input, an "Agent Voice" section, and an "Agent Personality" section.
-  - Above the HoursOfOperation list there is an "Add day" button that appends a new empty row; each row has a "Remove" button that deletes that row.
-  - The "Agent Voice" section contains: a labelled dropdown for `agentGender` with options "Female" (value "female", default) and "Male" (value "male"); and a labelled text input for `agentName` (placeholder "e.g. Alex, Maya") with a hint "If set, the agent introduces itself by this name at the start of each call." The `agentName` field is optional.
-  - The "Agent Personality" section contains: a labelled dropdown for `greetingStyle` with options "Warm" (value "warm", default), "Professional" (value "professional"), "Friendly" (value "friendly_first_name"), "Custom" (value "custom"); a labelled text input for `customGreeting` that is only shown when `greetingStyle` is "custom"; a labelled dropdown for `toneProfile` with options "Friendly" (value "friendly", default), "Professional" (value "professional"), "Gentle" (value "gentle"); a labelled dropdown for `closingStyle` with options "Standard" (value "standard", default), "Appointment-focused" (value "appointment_focused"), "Custom" (value "custom"); and a labelled text input for `customClosing` that is only shown when `closingStyle` is "custom".
+- Add the admin practice page shell to :WebApp: at the route `GET /admin/practice`.
+  - The page calls `GET /api/practice` on load and pre-fills its form with the returned values; if the response is `{}` all fields start empty.
+  - The form has labelled text inputs for `name`, `address`, and `phoneDisplay`.
+  - Below the basic fields is a "Hours of Operation" section: a labelled repeatable list where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` time input (HH:MM), and a `closeTime` time input (HH:MM), plus a "Remove" button. Above the list is an "Add day" button that appends a new empty row.
+- Add the "Agent Voice" section to the admin practice page form.
+  - The section is rendered as a card or fieldset labelled "Agent Voice" below the Hours of Operation section.
+  - It contains a labelled dropdown for `agentGender` with options "Female" (value "female", default) and "Male" (value "male").
+  - It contains a labelled text input for `agentName` (placeholder "e.g. Alex, Maya") with hint text "If set, the agent introduces itself by this name at the start of each call." The field is optional.
+- Add the "Agent Personality" section to the admin practice page form.
+  - The section is rendered as a card or fieldset labelled "Agent Personality" below the Agent Voice section.
+  - It contains a labelled dropdown for `greetingStyle` with options "Warm" (value "warm", default), "Professional" (value "professional"), "Friendly first name" (value "friendly_first_name"), "Custom" (value "custom").
+  - When `greetingStyle` is "custom", a labelled textarea for `customGreeting` appears directly below the dropdown. When `greetingStyle` is any other value, `customGreeting` is hidden.
+  - It contains a labelled dropdown for `toneProfile` with options "Friendly" (value "friendly", default), "Professional" (value "professional"), "Gentle" (value "gentle").
+  - It contains a labelled dropdown for `closingStyle` with options "Standard" (value "standard", default), "Appointment-focused" (value "appointment_focused"), "Custom" (value "custom").
+  - When `closingStyle` is "custom", a labelled textarea for `customClosing` appears directly below the dropdown. When `closingStyle` is any other value, `customClosing` is hidden.
 - Wire up saving on the admin practice page at `GET /admin/practice`.
   - Add a "Save" button below the form.
   - Clicking "Save" sends `PUT /api/practice` with the current form values as a JSON body matching the shape used by `GET /api/practice`.
