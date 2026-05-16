@@ -57,7 +57,7 @@ description: "Python LiveKit voice agent worker for the dental voice receptionis
 - Answer :Patient: questions about the practice using the loaded context.
   - While in a :Call:, :VoiceAgent: passes each :Patient: utterance transcribed by the speech-to-text engine to the language-model engine to generate a spoken response.
   - The response is grounded only in the in-memory practice context loaded at session start (:Practice:, the :Service: list, and the :Staff: list).
-  - The agent can answer questions about: the practice name and address; the phone number to reach the practice (using :Practice:.PhoneDisplay); the opening and closing times for each day of the week (from :Practice:.HoursOfOperation); the services offered, their durations in minutes, prices in US dollars, and descriptions (from the :Service: list); the names, roles, and bios of staff members (from the :Staff: list).
+  - The agent can answer questions about: the practice name and address; the phone number to reach the practice (using :Practice:.PhoneDisplay); the opening and closing times for each day of the week (from :Practice:.HoursOfOperation); the services offered, their durations in minutes, prices in US dollars, and descriptions (from the :Service: list); the names, roles, bios, qualifications (when non-empty), and clinical specializations (when non-empty) of staff members (from the :Staff: list).
   - The agent always responds in English.
   - The agent never asks the :Patient: about insurance, medical history, or payment, and never volunteers information that is not present in the loaded context.
 - Promise a callback and create a :StaffTask: when the :Patient: asks something the agent cannot answer.

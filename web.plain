@@ -100,8 +100,8 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - When an inline service edit returns HTTP 400, the row should remain in edit mode and show the returned error message.
   - After confirming deletion of a service that returns HTTP 204, that service should no longer appear in the services table.
 - Implement the staff list and create HTTP API on :WebApp:.
-  - `GET /api/staff` returns HTTP 200 with a JSON array of all :Staff: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `role` (string), `bio` (string, may be empty).
-  - `POST /api/staff` accepts a JSON body with `name`, `role` (both required, non-empty) and `bio` (optional, defaults to empty string) and creates a new :Staff: row. Returns HTTP 201 with the created :Staff:'s JSON including its server-assigned `id`.
+  - `GET /api/staff` returns HTTP 200 with a JSON array of all :Staff: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `role` (string), `bio` (string, may be empty), `qualifications` (string, may be empty), `specialization` (string, may be empty).
+  - `POST /api/staff` accepts a JSON body with `name`, `role` (both required, non-empty), `bio` (optional, defaults to empty string), `qualifications` (optional, defaults to empty string), and `specialization` (optional, defaults to empty string) and creates a new :Staff: row. Returns HTTP 201 with the created :Staff:'s JSON including its server-assigned `id`.
   - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` or `role` is missing or empty.
   - :Staff: rows are persisted in the data store and survive :WebApp: restarts.
 
@@ -109,19 +109,19 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - Creating two valid :Staff: rows should make `GET /api/staff` return them ordered by name ascending.
   - A `POST /api/staff` request with an empty `role` should return HTTP 400 and should not create a :Staff: row.
 - Implement the staff update and delete HTTP API on :WebApp:.
-  - `PUT /api/staff/:id` accepts a JSON body with the same shape as `POST /api/staff` and replaces the matching :Staff: row's mutable attributes. Returns HTTP 200 with the updated JSON.
+  - `PUT /api/staff/:id` accepts a JSON body with the same shape as `POST /api/staff` (including the optional `qualifications` and `specialization` fields) and replaces the matching :Staff: row's mutable attributes. Returns HTTP 200 with the updated JSON.
   - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Staff: with that `id` exists.
   - PUT returns HTTP 400 with body `{"error": "<message>"}` on the same validation failures as POST.
   - `DELETE /api/staff/:id` deletes the matching :Staff: row and all of its :WorkingHours: entries. Returns HTTP 204 with empty body on success.
   - DELETE returns HTTP 404 with body `{"error": "not found"}` if no :Staff: with that `id` exists.
   - DELETE returns HTTP 409 with body `{"error": "staff has appointments"}` if any :Appointment: row exists whose StaffRef points at this :Staff: and whose Status is "booked".
 - Add the admin staff page to :WebApp: at the route `GET /admin/staff`.
-  - On page load the page calls `GET /api/staff` and renders the returned :Staff: rows as a table with columns Name, Role, Bio.
-  - Below the table the page shows an "Add staff" form with text inputs for `name` and `role` and a textarea for `bio`, plus a "Create" button.
+  - On page load the page calls `GET /api/staff` and renders the returned :Staff: rows as a table with columns Name, Role, Specialization (empty if unset), Qualifications (empty if unset), Bio.
+  - Below the table the page shows an "Add staff" form with text inputs for `name`, `role`, `qualifications` (label "Qualifications", placeholder "e.g. DDS, DMD, RDH"), and `specialization` (label "Specialization", placeholder "e.g. General Dentistry, Cosmetic Dentistry"), and a textarea for `bio`, plus a "Create" button.
   - Clicking "Create" sends `POST /api/staff` with the form values. On HTTP 201 the form is cleared and the page re-fetches and re-renders the table. On HTTP 400 the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
 - Wire up edit and delete on the admin staff page at `GET /admin/staff`.
   - Each table row has an "Edit" button and a "Delete" button.
-  - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/staff/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
+  - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values (including `qualifications` and `specialization`), a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/staff/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
   - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/staff/:id` and on HTTP 204 removes the row from the table. On HTTP 409 the page shows the returned `error` message in a red banner near the row and leaves the row in place.
 
   ***acceptance tests***
@@ -306,7 +306,7 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
     - `Routine Cleaning`: DurationMinutes 60, PriceCents 12000, Category "Preventive", PreProcedureInstructions "Please brush and floss before your appointment.", PostProcedureInstructions "Avoid eating or drinking for 30 minutes after your cleaning."
     - `Dental Checkup`: DurationMinutes 30, PriceCents 8500, Category "Preventive", PreProcedureInstructions "No special preparation is needed for your checkup.", PostProcedureInstructions "You can eat and drink normally after your checkup."
     - `Teeth Whitening`: DurationMinutes 90, PriceCents 25000, Category "Cosmetic", PreProcedureInstructions "Avoid coffee, tea, red wine, and dark foods for 24 hours before your whitening session.", PostProcedureInstructions "Avoid staining foods and drinks for 24 hours after your whitening treatment."
-  - The endpoint creates or updates three demo :Staff: rows: `Dr. Maya Chen` with Role `Dentist`; `Dr. Oliver Grant` with Role `Dentist`; and `Sofia Ramirez` with Role `Hygienist`. Each demo :Staff: row has a short non-empty English bio.
+  - The endpoint creates or updates three demo :Staff: rows, each with a short non-empty English bio, qualifications, and specialization: `Dr. Maya Chen` with Role `Dentist`, Qualifications `DMD`, Specialization `Cosmetic Dentistry`; `Dr. Oliver Grant` with Role `Dentist`, Qualifications `DDS`, Specialization `General Dentistry`; and `Sofia Ramirez` with Role `Hygienist`, Qualifications `RDH, BS`, Specialization `Preventive Care`.
   - The endpoint creates or updates Monday through Friday demo :WorkingHours: rows for each demo :Staff: member. Demo dentists work `09:00` to `17:00`; the demo hygienist works `08:30` to `15:30`.
   - The endpoint never deletes rows and never changes non-demo :Service:, :Staff:, or :WorkingHours: rows.
   - Running the endpoint more than once reuses the same demo-owned setup records instead of creating duplicates.

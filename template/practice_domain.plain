@@ -11,6 +11,8 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - Name - the staff member's full name as the agent should say it (required, non-empty)
   - Role - a short job title such as "Dentist" or "Hygienist" (required, non-empty)
   - Bio - a short English description the agent may read when the :Patient: asks about a specific staff member (optional)
+  - Qualifications - the staff member's professional credentials or degree, as a short string the agent may read aloud when introducing the staff member, e.g. "DDS", "DMD", "RDH, BS" (optional; if unset the agent does not mention credentials)
+  - Specialization - the staff member's area of clinical focus, e.g. "General Dentistry", "Cosmetic Dentistry", "Orthodontics", "Pediatric Dentistry", "Periodontics" (optional; if unset the agent does not mention a specialization)
 - :Practice: is the dental practice that the system serves. Exactly one :Practice: exists in the MVP. :Practice: has:
   - Name - the public-facing name of the practice (required, non-empty)
   - Address - a free-form street address (required, non-empty)
