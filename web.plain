@@ -5,7 +5,166 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
 ---
 
 ***definitions***
-> Module-specific concepts (admin UI, simulator UI, call records) are added here as Phase 1 topics are walked.
+- :WebApp: is the web application defined by :plainImplementationCode: of this module. :WebApp: serves two browser-facing surfaces (the admin UI used by :PracticeAdmin: and the patient-facing call simulator used by :Patient:) and the JSON HTTP APIs that the voice agent calls during a :Call:.
 
 ***functional specs***
-> Functional specs are added here via the add-functional-spec / add-functional-specs skills as Phase 1 topics are walked.
+- Implement the entry point for :WebApp:. :WebApp: listens on HTTP port 3000 on the local host. A request to the root path "/" returns an HTTP 200 response with a minimal HTML placeholder page. A request to the health-check endpoint "GET /api/health" returns an HTTP 200 response with JSON body `{"status":"ok"}`.
+- Implement the practice-info HTTP API on :WebApp:.
+  - `GET /api/practice` returns HTTP 200 with the JSON representation of the single :Practice: row, or HTTP 200 with body `{}` if no row exists yet.
+  - `PUT /api/practice` accepts a JSON body and upserts the single :Practice: row.
+  - The JSON representation has fields: `name` (string), `address` (string), `phoneDisplay` (string), `hoursOfOperation` (array of objects each with `dayOfWeek` of "Monday".."Sunday", `openTime` "HH:MM", `closeTime` "HH:MM"), `greetingTemplate` (string).
+  - PUT returns HTTP 200 with the saved JSON on success.
+  - PUT returns HTTP 400 with body `{"error": "<message>"}` if any required attribute is missing or empty, or if any time string is not a valid "HH:MM" 24-hour value.
+  - The :Practice: row is persisted in the data store with one column per attribute, and survives :WebApp: restarts.
+- Add the admin practice page to :WebApp: at the route `GET /admin`.
+  - The page is an HTML page that lets :PracticeAdmin: view the single :Practice: row in an editable form. No submit action is wired yet by this spec.
+  - On page load the page calls `GET /api/practice` and pre-fills its form fields with the returned values; if the response is `{}` all fields start empty.
+  - The form has labelled inputs for `name`, `address`, `phoneDisplay`, and `greetingTemplate` (all text inputs), and a repeatable list of HoursOfOperation rows where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` input, and a `closeTime` input.
+  - Above the HoursOfOperation list there is an "Add day" button that appends a new empty row; each row has a "Remove" button that deletes that row.
+- Wire up saving on the admin practice page at `GET /admin`.
+  - Add a "Save" button below the form.
+  - Clicking "Save" sends `PUT /api/practice` with the current form values as a JSON body matching the shape used by `GET /api/practice`.
+  - On HTTP 200 from PUT the page shows a "Saved" confirmation banner above the form for at least 3 seconds before auto-dismissing.
+  - On HTTP 400 from PUT the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
+- Implement the services list and create HTTP API on :WebApp:.
+  - `GET /api/services` returns HTTP 200 with a JSON array of all :Service: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `durationMinutes` (integer), `priceCents` (integer), `description` (string).
+  - `POST /api/services` accepts a JSON body with `name`, `durationMinutes`, `priceCents`, `description` (all required) and creates a new :Service: row. Returns HTTP 201 with the created :Service:'s JSON including its server-assigned `id`.
+  - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` is empty, `description` is empty, `durationMinutes` is not a positive integer multiple of 15, or `priceCents` is negative.
+  - :Service: rows are persisted in the data store and survive :WebApp: restarts.
+- Implement the services update and delete HTTP API on :WebApp:.
+  - `PUT /api/services/:id` accepts a JSON body with the same shape as `POST /api/services` and replaces the matching :Service: row's mutable attributes. Returns HTTP 200 with the updated JSON.
+  - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Service: with that `id` exists.
+  - PUT returns HTTP 400 with body `{"error": "<message>"}` on the same validation failures as POST.
+  - `DELETE /api/services/:id` deletes the matching :Service: row. Returns HTTP 204 with empty body on success.
+  - DELETE returns HTTP 404 with body `{"error": "not found"}` if no :Service: with that `id` exists.
+- Add the admin services page to :WebApp: at the route `GET /admin/services`.
+  - On page load the page calls `GET /api/services` and renders the returned :Service: rows as a table with columns Name, Duration (in minutes), Price (formatted as US dollars), Description.
+  - Below the table the page shows an "Add service" form with text inputs for `name`, `durationMinutes`, `priceCents`, and `description`, and a "Create" button.
+  - Clicking "Create" sends `POST /api/services` with the form values. On HTTP 201 the form is cleared and the page re-fetches and re-renders the table. On HTTP 400 the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
+- Wire up edit and delete on the admin services page at `GET /admin/services`.
+  - Each table row has an "Edit" button and a "Delete" button.
+  - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/services/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
+  - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/services/:id` and on HTTP 204 removes the row from the table.
+- Implement the staff list and create HTTP API on :WebApp:.
+  - `GET /api/staff` returns HTTP 200 with a JSON array of all :Staff: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `role` (string), `bio` (string, may be empty).
+  - `POST /api/staff` accepts a JSON body with `name`, `role` (both required, non-empty) and `bio` (optional, defaults to empty string) and creates a new :Staff: row. Returns HTTP 201 with the created :Staff:'s JSON including its server-assigned `id`.
+  - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` or `role` is missing or empty.
+  - :Staff: rows are persisted in the data store and survive :WebApp: restarts.
+- Implement the staff update and delete HTTP API on :WebApp:.
+  - `PUT /api/staff/:id` accepts a JSON body with the same shape as `POST /api/staff` and replaces the matching :Staff: row's mutable attributes. Returns HTTP 200 with the updated JSON.
+  - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Staff: with that `id` exists.
+  - PUT returns HTTP 400 with body `{"error": "<message>"}` on the same validation failures as POST.
+  - `DELETE /api/staff/:id` deletes the matching :Staff: row and all of its :WorkingHours: entries. Returns HTTP 204 with empty body on success.
+  - DELETE returns HTTP 404 with body `{"error": "not found"}` if no :Staff: with that `id` exists.
+  - DELETE returns HTTP 409 with body `{"error": "staff has appointments"}` if any :Appointment: row exists whose StaffRef points at this :Staff: and whose Status is "booked".
+- Add the admin staff page to :WebApp: at the route `GET /admin/staff`.
+  - On page load the page calls `GET /api/staff` and renders the returned :Staff: rows as a table with columns Name, Role, Bio.
+  - Below the table the page shows an "Add staff" form with text inputs for `name` and `role` and a textarea for `bio`, plus a "Create" button.
+  - Clicking "Create" sends `POST /api/staff` with the form values. On HTTP 201 the form is cleared and the page re-fetches and re-renders the table. On HTTP 400 the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
+- Wire up edit and delete on the admin staff page at `GET /admin/staff`.
+  - Each table row has an "Edit" button and a "Delete" button.
+  - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/staff/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
+  - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/staff/:id` and on HTTP 204 removes the row from the table. On HTTP 409 the page shows the returned `error` message in a red banner near the row and leaves the row in place.
+- Implement the working-hours list and create HTTP API on :WebApp:.
+  - `GET /api/staff/:staffId/working-hours` returns HTTP 200 with a JSON array of all :WorkingHours: rows whose StaffRef matches `:staffId`, ordered by DayOfWeek then StartTime ascending. Each row has fields `id` (string), `staffId` (string), `dayOfWeek` ("Monday".."Sunday"), `startTime` ("HH:MM"), `endTime` ("HH:MM").
+  - GET returns HTTP 404 with body `{"error": "staff not found"}` if no :Staff: with that `staffId` exists.
+  - `POST /api/staff/:staffId/working-hours` accepts a JSON body with `dayOfWeek`, `startTime`, `endTime` (all required) and creates a new :WorkingHours: row linked to that staff member. Returns HTTP 201 with the created row's JSON including its server-assigned `id`.
+  - POST returns HTTP 400 with body `{"error": "<message>"}` if any field is missing, if `dayOfWeek` is not one of "Monday".."Sunday", if either time is not a valid "HH:MM" 24-hour string aligned to a 15-minute mark (00, 15, 30, 45 minutes), or if `endTime` is not strictly later than `startTime`.
+  - POST returns HTTP 404 if no :Staff: with that `staffId` exists.
+  - :WorkingHours: rows are persisted in the data store and survive :WebApp: restarts.
+- Implement the working-hours update and delete HTTP API on :WebApp:.
+  - `PUT /api/working-hours/:id` accepts a JSON body with the same shape as `POST /api/staff/:staffId/working-hours` (without `staffId`) and replaces the matching :WorkingHours: row's mutable attributes. Returns HTTP 200 with the updated JSON including its `staffId`.
+  - PUT returns HTTP 404 with body `{"error": "not found"}` if no :WorkingHours: with that `id` exists.
+  - PUT returns HTTP 400 with body `{"error": "<message>"}` on the same validation failures as POST.
+  - `DELETE /api/working-hours/:id` deletes the matching :WorkingHours: row. Returns HTTP 204 with empty body on success.
+  - DELETE returns HTTP 404 with body `{"error": "not found"}` if no :WorkingHours: with that `id` exists.
+- Add the admin working-hours page to :WebApp: at the route `GET /admin/staff/:staffId/hours`.
+  - On page load the page calls `GET /api/staff` and shows the matching :Staff: member's Name and Role at the top; if no :Staff: with that `staffId` exists the page renders a 404 message.
+  - The page calls `GET /api/staff/:staffId/working-hours` and renders the returned :WorkingHours: rows as a table with columns Day, Start, End, ordered by day and start time.
+  - Each row in `/admin/staff` (the staff table) has an additional "Edit hours" link that navigates to `/admin/staff/:id/hours`.
+  - Below the working-hours table the page shows an "Add hours" form with a day-of-week dropdown (Monday..Sunday) and `startTime` / `endTime` inputs accepting "HH:MM" 24-hour values aligned to a 15-minute mark, plus a "Create" button.
+  - Clicking "Create" sends `POST /api/staff/:staffId/working-hours` with the form values. On HTTP 201 the form is cleared and the page re-fetches and re-renders the working-hours table. On HTTP 400 the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
+- Wire up edit and delete on the admin working-hours page at `GET /admin/staff/:staffId/hours`.
+  - Each working-hours row has an "Edit" button and a "Delete" button.
+  - Clicking "Edit" replaces that row in place with a day dropdown and time inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/working-hours/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
+  - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/working-hours/:id` and on HTTP 204 removes the row from the table.
+- Implement the availability query HTTP API on :WebApp:.
+  - `GET /api/availability?serviceId=<id>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` returns HTTP 200 with a JSON array of available time slots.
+  - Each element in the array is an object with `staffId` (string), `staffName` (string), `serviceId` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `endAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM").
+  - The list is computed by: looking up the :Service: with the given `serviceId`; for each :Staff: member, iterating each day from `from` to `to` inclusive; for each :WorkingHours: entry of that :Staff: whose DayOfWeek matches that date's day of the week, enumerating candidate start times every 15 minutes from `StartTime` up to `EndTime` minus the service's `DurationMinutes`; including a candidate only if no existing :Appointment: of the same :Staff: whose Status is "booked" overlaps the candidate window `[startAt, startAt + DurationMinutes)`.
+  - The array is sorted by `startAt` ascending, with `staffId` ascending as a tiebreaker.
+  - GET returns HTTP 400 with body `{"error": "<message>"}` if `serviceId` is missing or empty, if `from` or `to` is missing or not a valid `YYYY-MM-DD` date, or if `from` is strictly after `to`.
+  - GET returns HTTP 404 with body `{"error": "service not found"}` if no :Service: with that `serviceId` exists.
+- Implement the booking creation HTTP API on :WebApp:.
+  - `POST /api/appointments` accepts a JSON body with `serviceId` (string), `staffId` (string), `patientPhone` (string), `patientName` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM").
+  - On success returns HTTP 201 with the created :Appointment: JSON including `id`, `serviceId`, `staffId`, `patientPhone`, `patientName`, `startAt`, `endAt` (computed as `startAt` plus the service's `DurationMinutes`), `status` ("booked"), `createdAt` (ISO 8601 timestamp).
+  - POST returns HTTP 400 with body `{"error": "<message>"}` if any field is missing or empty, or `startAt` is not aligned to a quarter-hour mark (minute 00, 15, 30, or 45).
+  - POST returns HTTP 404 with body `{"error": "service not found"}` if no :Service: matches `serviceId`, or `{"error": "staff not found"}` if no :Staff: matches `staffId`.
+  - POST returns HTTP 409 with body `{"error": "slot unavailable"}` if the proposed `[startAt, endAt)` window is not contained within at least one :WorkingHours: entry of the given :Staff: on that day of week, or if it overlaps any existing :Appointment: of the same :Staff: whose Status is "booked".
+  - The :Appointment: row is persisted in the data store and survives :WebApp: restarts.
+- Implement the call create and transcript append HTTP API on :WebApp:.
+  - `POST /api/calls` accepts a JSON body with `patientPhone` (string, required, non-empty) and creates a new :Call: row with `status` "in_progress", `startedAt` set to the current server timestamp in ISO 8601, an empty `transcript`, no `endedAt`, no `summary`, and no `appointmentId`. Returns HTTP 201 with the created :Call:'s JSON including its server-assigned `id`.
+  - POST `/api/calls` returns HTTP 400 with body `{"error": "<message>"}` if `patientPhone` is missing or empty.
+  - `POST /api/calls/:id/transcript` accepts a JSON body with `speaker` (one of "patient" or "agent") and `text` (string, non-empty) and appends one turn to the :Call:'s `transcript`. The appended turn has fields `speaker`, `text`, and a server-assigned `at` (ISO 8601 timestamp). Returns HTTP 200 with the updated :Call:'s JSON.
+  - POST `/api/calls/:id/transcript` returns HTTP 400 with body `{"error": "<message>"}` if `speaker` is not "patient" or "agent", or if `text` is missing or empty.
+  - POST `/api/calls/:id/transcript` returns HTTP 404 with body `{"error": "not found"}` if no :Call: with that `id` exists, and HTTP 409 with body `{"error": "call ended"}` if the call's `status` is "ended".
+  - :Call: rows are persisted in the data store and survive :WebApp: restarts.
+- Implement the call finalize HTTP API on :WebApp:.
+  - `POST /api/calls/:id/end` accepts a JSON body with `summary` (string, may be empty) and `appointmentId` (string, optional). The endpoint sets the :Call:'s `status` to "ended", `endedAt` to the current server timestamp in ISO 8601, `summary` to the provided value, and `appointmentId` to the matching :Appointment:'s id if one was provided. Returns HTTP 200 with the updated :Call:'s JSON.
+  - POST `/api/calls/:id/end` returns HTTP 404 with body `{"error": "not found"}` if no :Call: with that `id` exists, or HTTP 404 with body `{"error": "appointment not found"}` if `appointmentId` was provided but no :Appointment: with that id exists.
+  - POST `/api/calls/:id/end` returns HTTP 409 with body `{"error": "already ended"}` if the call's `status` is already "ended". The :Call: row is not modified in this case.
+- Implement the LiveKit access-token HTTP API on :WebApp:.
+  - `POST /api/livekit/token` accepts a JSON body with `roomName` (string, required, non-empty) and `participantIdentity` (string, required, non-empty).
+  - On success returns HTTP 200 with body `{"token": "<jwt>", "url": "<wssUrl>"}` where `token` is a signed LiveKit participant access token and `url` is the LiveKit server WebSocket URL.
+  - The token grants the holder permission to join the named room as a publisher and subscriber for audio only (no video). The token expires 10 minutes after issuance.
+  - The endpoint reads the LiveKit API key, API secret, and server URL from server-side configuration. These values are not exposed to the browser.
+  - POST returns HTTP 400 with body `{"error": "<message>"}` if `roomName` or `participantIdentity` is missing or empty.
+  - POST returns HTTP 500 with body `{"error": "livekit not configured"}` if any of the three required configuration values is missing on the server.
+- Add the patient call simulator entry page to :WebApp: at the route `GET /simulator`.
+  - The page renders a phone-style dial pad with twelve buttons labelled "1".."9", "*", "0", "#", a text display above the dial pad showing the digits the :Patient: has entered, a backspace button to remove the last digit, and a green "Call" button below the dial pad.
+  - Tapping a number, "*", or "#" button appends that character to the displayed number; the displayed number is purely cosmetic in this spec and no validation is enforced beyond the next bullet.
+  - The "Call" button is disabled while the displayed number has fewer than 7 characters and enabled otherwise.
+  - Clicking "Call" does nothing functional in this spec; later specs wire the dial-out flow.
+- Wire the simulator "Call" button to start a :Call: and join a LiveKit room.
+  - When :Patient: clicks "Call" on `/simulator` and the button is enabled, :WebApp: sends `POST /api/calls` with body `{"patientPhone": "<the displayed number>"}` and reads the returned :Call: `id`.
+  - :WebApp: then sends `POST /api/livekit/token` with body `{"roomName": "call-<:Call: id>", "participantIdentity": "patient-<:Call: id>"}` and reads the returned `token` and `url`.
+  - :WebApp: requests microphone permission from the browser and joins the LiveKit room at `url` with the obtained `token`, publishing the patient's microphone audio track and subscribing to audio tracks from other participants.
+  - While these steps are in flight the page shows a "Connecting…" state in place of the dial pad.
+  - If any of the three steps fails, the page returns to the dial-pad state and shows a red banner with text "Could not start the call. Please try again." above the dial pad.
+- Render the in-call UI on `/simulator` once the LiveKit room has been joined.
+  - The page replaces the dial pad with an in-call panel showing the dialled number at the top, a live microphone-level indicator that animates while the :Patient:'s microphone is active, and a red "Hang up" button at the bottom.
+  - The in-call panel also shows the elapsed call duration as `MM:SS`, updated every second, starting at `00:00` when the room is joined.
+  - The page plays incoming audio from the room through the browser's audio output.
+  - The page hides any prior error banner while the in-call UI is shown.
+- Wire the simulator "Hang up" button to end the :Call: and reset the page.
+  - Clicking "Hang up" leaves the LiveKit room (releasing the microphone and unpublishing the audio track), then sends `POST /api/calls/:id/end` with body `{"summary": "", "appointmentId": null}` for the current :Call: `id`.
+  - After the room has been left and the POST has returned (success or failure), the page returns to the dial-pad state with the displayed number cleared and shows a non-blocking "Call ended" confirmation banner above the dial pad for at least 3 seconds.
+- Implement the appointments list HTTP API on :WebApp:.
+  - `GET /api/appointments` returns HTTP 200 with a JSON array of all :Appointment: rows ordered by `startAt` ascending, with `id` ascending as a tiebreaker.
+  - Each element has fields: `id` (string), `serviceId` (string), `serviceName` (string, the joined :Service: `Name`), `staffId` (string), `staffName` (string, the joined :Staff: `Name`), `patientPhone` (string), `patientName` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `endAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `status` (string), `createdAt` (ISO 8601 timestamp).
+- Add the admin appointments page to :WebApp: at the route `GET /admin/appointments`.
+  - On page load the page calls `GET /api/appointments` and renders the returned rows as a read-only table with columns Date, Time, Service, Staff, Patient name, Patient phone, Status, in the order the API returned them.
+  - Date is formatted as `EEE, MMM d yyyy` (e.g. "Sun, Jan 5 2026"). Time is formatted as the local time range `HH:MM - HH:MM` (e.g. "09:00 - 10:00").
+  - Consecutive rows that share the same Date value are grouped under a date header row that spans the full table width.
+  - If the API returns an empty array, the page shows the text "No appointments yet." in place of the table.
+  - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
+- Implement the call log read HTTP API on :WebApp:.
+  - `GET /api/calls` returns HTTP 200 with a JSON array of all :Call: rows ordered by `startedAt` descending. Each element has fields `id`, `patientPhone`, `startedAt`, `endedAt` (nullable), `status`, `summary` (nullable), `appointmentId` (nullable). The `transcript` field is omitted from the list response.
+  - `GET /api/calls/:id` returns HTTP 200 with the full JSON of one :Call: row, including the `transcript` array. Each transcript element has fields `speaker` ("patient" or "agent"), `text` (string), `at` (ISO 8601 timestamp).
+  - GET `/api/calls/:id` returns HTTP 404 with body `{"error": "not found"}` if no :Call: with that `id` exists.
+- Add the admin call log page to :WebApp: at the route `GET /admin/calls`.
+  - On page load the page calls `GET /api/calls` and renders the returned rows as a read-only table with columns Started, Ended, Phone, Status, Summary, in the order the API returned them.
+  - Started and Ended are formatted as `EEE, MMM d yyyy HH:MM` in local time. An empty Ended cell is rendered as "—". Status displays the raw string. Summary cells are truncated visually to a single line, with the full text shown on hover.
+  - Each row links to `/admin/calls/:id`.
+  - If the API returns an empty array, the page shows the text "No calls yet." in place of the table.
+  - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
+- Add the admin call detail page to :WebApp: at the route `GET /admin/calls/:id`.
+  - On page load the page calls `GET /api/calls/:id`. If the response is HTTP 404 the page renders the text "Call not found." and a link back to `/admin/calls`.
+  - On success the page shows a header section with the :Call:'s Phone, Started timestamp, Ended timestamp (or "still in progress"), Status, and Summary.
+  - Below the header the page renders the transcript as a chronological list of turns. Each turn shows the speaker label ("Patient" or "Agent") in bold followed by the turn text. Turns from the same speaker are visually grouped with a small vertical gap between speakers.
+  - If the transcript array is empty the page shows the text "Transcript is empty." in place of the turn list.
+  - The page has a header bar with a link labelled "Back to call log" pointing to `/admin/calls`.
+- Add a top navigation bar to every admin page in :WebApp:.
+  - Every page whose path begins with `/admin` renders a navigation bar at the top of the page containing five links: "Practice" → `/admin`, "Services" → `/admin/services`, "Staff" → `/admin/staff`, "Appointments" → `/admin/appointments`, "Call log" → `/admin/calls`.
+  - The link whose target matches the current page (or the closest parent path under `/admin/staff/:id/hours` → "Staff", and `/admin/calls/:id` → "Call log") is rendered with a visually distinct active style (for example a bold weight and an underline).
+  - The navigation bar replaces any prior per-page "Back to admin" or "Back to call log" header link defined by earlier specs.

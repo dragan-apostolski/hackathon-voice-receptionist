@@ -15,3 +15,31 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - PhoneDisplay - the phone number the agent reads aloud when the :Patient: asks for it (required, non-empty)
   - HoursOfOperation - a weekly recurring schedule of when the practice is open, with one entry per day of week that has open hours (each entry: day of week from Monday..Sunday, open time, close time)
   - GreetingTemplate - a short English phrase the voice agent uses to greet the :Patient: at the start of a call (required, non-empty)
+- :Service: is something the :Practice: offers to a :Patient:, such as a cleaning, a filling, or a checkup. :Service: has:
+  - Name - the public name of the service (required, non-empty)
+  - DurationMinutes - how long the service takes, as a positive integer multiple of 15 (required)
+  - PriceCents - the price of the service in US-dollar cents, as a non-negative integer (required)
+  - Description - one or two sentences in English describing what the service is, read by the voice agent when the :Patient: asks (required, non-empty)
+- :WorkingHours: is a single recurring weekly time window during which a specific :Staff: member is available for appointments. A :Staff: member can have many :WorkingHours: entries (for example, one for each weekday morning and one for each weekday afternoon). :WorkingHours: has:
+  - StaffRef - the :Staff: member these hours belong to (required)
+  - DayOfWeek - one of Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (required)
+  - StartTime - the start time on that day, expressed as HH:MM in 24-hour local clock and aligned to a quarter-hour mark (00, 15, 30, or 45 minutes) (required)
+  - EndTime - the end time on that day, also HH:MM 24-hour aligned to a quarter-hour mark, strictly later than StartTime (required)
+- :Appointment: is a confirmed booking made by a :Patient: with a specific :Staff: member for a specific :Service: at a specific date and time. :Appointment: has:
+  - PatientPhone - the phone number of the :Patient:, captured from the call simulator at the start of the call (required, non-empty)
+  - PatientName - the first and last name of the :Patient: as the patient stated it during the call (required, non-empty)
+  - StaffRef - the :Staff: member who will provide the service (required)
+  - ServiceRef - the :Service: being booked (required)
+  - StartAt - the local date and time when the appointment begins, aligned to a quarter-hour mark (00, 15, 30, or 45 minutes past the hour) (required)
+  - EndAt - the local date and time when the appointment ends, equal to StartAt plus the DurationMinutes of the referenced :Service: (required, derived)
+  - Status - either "booked" or "cancelled"; in the MVP only "booked" is used and is the default (required)
+  - CreatedAt - the timestamp when the appointment record was created (required)
+  - Validity - an :Appointment: is valid only if it falls entirely within at least one :WorkingHours: entry of its StaffRef on the matching DayOfWeek and does not overlap any other :Appointment: of the same StaffRef whose Status is "booked"
+- :Call: is the persistent record of one simulated phone call between a :Patient: and the voice agent. :Call: has:
+  - PatientPhone - the phone number entered by the :Patient: in the call simulator at the start of the call (required, non-empty)
+  - StartedAt - the timestamp when the agent joined the room and the conversation began (required)
+  - EndedAt - the timestamp when the call was hung up by either side (optional while the call is in progress, required once the call has ended)
+  - Status - one of "in_progress" or "ended" (required)
+  - Transcript - the full back-and-forth between :Patient: and the voice agent, in chronological order, with each line labelled by speaker (required, may be empty while the call has just started)
+  - Summary - a short English summary of the call written at the end of the call by the voice agent (optional, present only when Status is "ended")
+  - AppointmentRef - the :Appointment: that was created during this call, if any (optional)
