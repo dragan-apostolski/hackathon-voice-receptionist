@@ -7,6 +7,22 @@ description: Python LiveKit voice agent worker for the dental voice receptionist
 ***definitions***
 - :VoiceAgent: is the voice-agent worker defined by :plainImplementationCode: of this module. :VoiceAgent: connects to a LiveKit room when a :Call: starts, speaks to the :Patient: in English through a speech-to-text → language-model → text-to-speech pipeline, answers questions about :Practice:, :Service:, and :Staff:, books :Appointment: entries on behalf of the :Patient:, and persists transcript and summary back into the :Call: record.
 
+***implementation reqs***
+
+- :VoiceAgent: is implemented in Python 3.11 or newer. The project must use type hints throughout and pass `mypy --strict` on its own modules.
+- :VoiceAgent: is built with the LiveKit Agents Python SDK (`livekit-agents`). The renderer must verify the current SDK API against the LiveKit documentation; do not infer method names or class structure from training-data memory.
+- The agent worker uses three plugins from the LiveKit Agents ecosystem: `livekit-plugins-deepgram` for speech-to-text, `livekit-plugins-openai` for the language model, and `livekit-plugins-elevenlabs` for text-to-speech. These plugins are wired into the LiveKit Agents `VoicePipelineAgent` (or its current equivalent — verify against the SDK) in that order.
+- The language-model engine uses the OpenAI Chat Completions API with model `gpt-4o-mini` by default. The model id is read from environment variable `OPENAI_MODEL` and defaults to `gpt-4o-mini` if unset.
+- The text-to-speech engine uses the ElevenLabs voice whose voice id is read from environment variable `ELEVENLABS_VOICE_ID`. If the variable is unset the worker fails fast at startup with a clear error message.
+- Dependency management uses `uv` with a `pyproject.toml` at `agent/pyproject.toml`. A `uv.lock` file is committed.
+- :VoiceAgent: never accesses the database directly. All persistence and lookups go through :WebApp:'s HTTP API using the `httpx` async client. The :WebApp: base URL is read from environment variable `WEB_API_BASE_URL` (no default — required).
+- All external services are configured exclusively via environment variables: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (LiveKit Cloud), `DEEPGRAM_API_KEY` (Deepgram), `OPENAI_API_KEY` (OpenAI), `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` (ElevenLabs), and `WEB_API_BASE_URL` (the running :WebApp:). Local development reads them from a `.env` file in the `agent/` folder via `python-dotenv`. A committed `agent/.env.example` documents every required variable.
+- Source code is organized under `agent/src/voice_agent/` with the following modules: `main.py` (worker entry point and CLI), `session.py` (per-:Call: agent session — joins room, loads context, drives the pipeline, finalizes the call), `web_client.py` (typed async wrapper around :WebApp:'s HTTP endpoints), `tools.py` (LLM tool definitions for availability lookup, booking creation, and any other agent-callable actions), `prompts.py` (the system prompt template and any supporting prompt fragments), `config.py` (env-var loading with validation).
+- The system prompt is kept tight and is composed at session start by injecting only the loaded :Practice:, :Service:, and :Staff: data plus the agent's role description. Tool definitions exposed to the LLM are limited to the minimum needed for the current conversation phase. The agent does not include unrelated context to minimize latency.
+- The agent must respond in English only. Any non-English LLM output is reissued as an English clarification request rather than spoken to the :Patient:.
+- Coding style is enforced with `ruff` for both lint and format. CI-time `ruff check` and `ruff format --check` must pass with no warnings.
+- :VoiceAgent: should include :UnitTests: covering `web_client.py`, `tools.py`, and the session-lifecycle behavior in `session.py` (with the LiveKit pipeline and HTTP calls mocked).
+
 ***functional specs***
 - Implement the entry point for :VoiceAgent: as a long-running worker process.
   - The worker reads the LiveKit server URL, API key, and API secret from server-side configuration.
