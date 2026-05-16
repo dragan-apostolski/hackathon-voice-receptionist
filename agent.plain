@@ -23,6 +23,15 @@ description: Python LiveKit voice agent worker for the dental voice receptionist
 - Coding style is enforced with `ruff` for both lint and format. CI-time `ruff check` and `ruff format --check` must pass with no warnings.
 - :VoiceAgent: should include :UnitTests: covering `web_client.py`, `tools.py`, and the session-lifecycle behavior in `session.py` (with the LiveKit pipeline and HTTP calls mocked).
 
+***test reqs***
+
+- :UnitTests: of :VoiceAgent: are written in Python and run with pytest.
+- :UnitTests: live under `tests/` (a sibling of `src/`) and mirror the structure of `src/voice_agent/`, with filenames of the form `test_<module>.py`.
+- :UnitTests: cover at minimum: `web_client.py` (every HTTP method exercised with happy-path and error-path responses), `tools.py` (every tool exercised with happy-path and at least one edge-case input), and `session.py` (the session lifecycle — joining, context loading, greeting, transcript appending, finalize — with the LiveKit pipeline mocked).
+- :UnitTests: never make real network calls. All :WebApp: HTTP calls are mocked using `httpx.MockTransport`. All LiveKit Agents SDK pipeline objects, plugin clients (Deepgram, OpenAI, ElevenLabs), and audio I/O are mocked via `unittest.mock` or pytest fixtures.
+- Async test functions use `pytest-asyncio` in `auto` mode so `async def` test functions are picked up without explicit decoration.
+- :UnitTests: are executed by the script `test_scripts/run_unittests_python.sh`, which receives the rendered agent project's folder as its first positional argument and is fully self-contained — every invocation stages the project into its own working folder, runs `uv sync` to install dependencies into a project-local `.venv` based on `pyproject.toml` and `uv.lock`, then invokes `uv run pytest tests/` with the project's default pytest configuration. The script must be safe to run multiple times back-to-back without state leaking between runs.
+
 ***functional specs***
 - Implement the entry point for :VoiceAgent: as a long-running worker process.
   - The worker reads the LiveKit server URL, API key, and API secret from server-side configuration.

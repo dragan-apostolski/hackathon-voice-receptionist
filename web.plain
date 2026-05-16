@@ -23,6 +23,16 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
 - Code style is enforced with ESLint and Prettier using the Next.js recommended configurations. CI-time formatting and lint must pass with no warnings.
 - :WebApp: should include :UnitTests: covering services and repositories at minimum.
 
+***test reqs***
+
+- :UnitTests: of :WebApp: are written in TypeScript and run with Vitest.
+- :UnitTests: are co-located next to the source files they cover, with the suffix `.test.ts` or `.test.tsx`. Vitest discovers them automatically under `src/`.
+- :UnitTests: cover at minimum every module under `src/services/`, every module under `src/repositories/`, and every module under `src/lib/`. UI components are not required to have :UnitTests: for the MVP.
+- :UnitTests: that exercise the repository layer run against a real PostgreSQL database (the same docker-compose Postgres service, but using a dedicated `voice_receptionist_test` database). Each repository test truncates the tables it touches in a `beforeEach` hook. Mocking the database client is forbidden in repository tests.
+- :UnitTests: that exercise services and lib helpers may mock the repository layer using vitest's built-in mocking. Mocking the repository layer is required (not optional) when the service test is not specifically testing the data path.
+- API-route tests (under `src/app/api/`) run as integration tests: they call the route handler with a constructed `Request` object, hit the real Postgres test database via the real repositories, and assert on the returned `Response`.
+- :UnitTests: are executed by the script `test_scripts/run_unittests_typescript.sh`, which receives the rendered web project's folder as its first positional argument and is fully self-contained — every invocation stages the project into its own working folder, installs npm dependencies with `npm ci`, starts the docker-compose Postgres service in detached mode, waits for it to accept connections, creates the `voice_receptionist_test` database if it does not exist, runs `prisma generate` and `prisma migrate deploy` against the test `DATABASE_URL`, then invokes `vitest run` with coverage reporters disabled by default. The script must be safe to run multiple times back-to-back without state leaking between runs.
+
 ***functional specs***
 - Implement the entry point for :WebApp:. :WebApp: listens on HTTP port 3000 on the local host. A request to the root path "/" returns an HTTP 200 response with a minimal HTML placeholder page. A request to the health-check endpoint "GET /api/health" returns an HTTP 200 response with JSON body `{"status":"ok"}`.
 - Implement the practice-info HTTP API on :WebApp:.
