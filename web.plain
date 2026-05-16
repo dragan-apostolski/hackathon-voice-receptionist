@@ -63,7 +63,10 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 - Add the admin practice page shell to :WebApp: at the route `GET /admin/practice`.
   - The page calls `GET /api/practice` on load and pre-fills its form with the returned values; if the response is `{}` all fields start empty.
   - The form has labelled text inputs for `name`, `address`, and `phoneDisplay`.
-  - Below the basic fields is a "Hours of Operation" section: a labelled repeatable list where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` time input (HH:MM), and a `closeTime` time input (HH:MM), plus a "Remove" button. Above the list is an "Add day" button that appends a new empty row.
+- Add the "Hours of Operation" section to the admin practice page form.
+  - The section is rendered below the basic fields, labelled "Hours of Operation".
+  - It is a repeatable list of rows; each row has a day-of-week dropdown (Monday..Sunday), an `openTime` text input (placeholder "HH:MM"), a `closeTime` text input (placeholder "HH:MM"), and a "Remove" button that deletes that row.
+  - Above the list is an "Add day" button that appends a new empty row to the list.
 - Add the "Agent Voice" section to the admin practice page form.
   - The section is rendered as a card or fieldset labelled "Agent Voice" below the Hours of Operation section.
   - It contains a labelled dropdown for `agentGender` with options "Female" (value "female", default) and "Male" (value "male").
