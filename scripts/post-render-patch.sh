@@ -22,7 +22,22 @@ export function cn(...inputs: ClassValue[]) {
 EOF
 fi
 
-# ── 2. src/components/ui/select.tsx (must be full Radix shadcn/ui, not native) ─
+# ── 2. dial-pad.tsx: remove duplicate local BackspaceIcon definition ──────────
+DIAL_PAD="$DIST/src/components/dial-pad.tsx"
+if [ -f "$DIAL_PAD" ] && grep -q "^function BackspaceIcon" "$DIAL_PAD"; then
+  echo "  [patch] removing duplicate BackspaceIcon definition from dial-pad.tsx"
+  node -e "
+const fs = require('fs');
+let src = fs.readFileSync('$DIAL_PAD', 'utf8');
+// Remove the local fallback BackspaceIcon function and everything after it that belongs to it
+src = src.replace(/\n\/\/ .*icon.*\n?function BackspaceIcon[\s\S]*?\n\}(\n|$)/i, '\n');
+// Also handle without comment line
+src = src.replace(/\nfunction BackspaceIcon\(\{ className \}[^}]+\}[^}]+\}\n?/s, '\n');
+fs.writeFileSync('$DIAL_PAD', src.trimEnd() + '\n');
+"
+fi
+
+# ── 3. src/components/ui/select.tsx (must be full Radix shadcn/ui, not native) ─
 SELECT="$DIST/src/components/ui/select.tsx"
 if [ ! -f "$SELECT" ] || ! grep -q "radix-ui/react-select" "$SELECT"; then
   echo "  [patch] rewriting select.tsx as full shadcn/ui Radix Select"
