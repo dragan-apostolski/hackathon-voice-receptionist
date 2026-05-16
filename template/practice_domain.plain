@@ -28,6 +28,9 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - DurationMinutes - how long the service takes, as a positive integer multiple of 15 (required)
   - PriceCents - the price of the service in US-dollar cents, as a non-negative integer (required)
   - Description - one or two sentences in English describing what the service is, read by the voice agent when the :Patient: asks (required, non-empty)
+  - Category - a short label grouping this service with similar ones, e.g. "Preventive", "Cosmetic", "Restorative", "Emergency" (optional; if unset the service is uncategorised)
+  - PreProcedureInstructions - one or two English sentences the agent reads to the :Patient: when confirming a booking, describing what to do or avoid before the appointment (optional; pre-filled with standard best practices in the demo seed; editable by :PracticeAdmin:)
+  - PostProcedureInstructions - one or two English sentences the agent reads to the :Patient: when confirming a booking, describing aftercare guidance (optional; pre-filled with standard best practices in the demo seed; editable by :PracticeAdmin:)
 - :WorkingHours: is a single recurring weekly time window during which a specific :Staff: member is available for appointments. A :Staff: member can have many :WorkingHours: entries (for example, one for each weekday morning and one for each weekday afternoon). :WorkingHours: has:
   - StaffRef - the :Staff: member these hours belong to (required)
   - DayOfWeek - one of Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (required)

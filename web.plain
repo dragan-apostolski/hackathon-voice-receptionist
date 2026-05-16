@@ -72,8 +72,8 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - When saving succeeds, the admin practice page should show the "Saved" banner without clearing the saved form values.
   - When saving returns HTTP 400, the admin practice page should display the returned error message and preserve the unsaved form values.
 - Implement the services list and create HTTP API on :WebApp:.
-  - `GET /api/services` returns HTTP 200 with a JSON array of all :Service: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `durationMinutes` (integer), `priceCents` (integer), `description` (string).
-  - `POST /api/services` accepts a JSON body with `name`, `durationMinutes`, `priceCents`, `description` (all required) and creates a new :Service: row. Returns HTTP 201 with the created :Service:'s JSON including its server-assigned `id`.
+  - `GET /api/services` returns HTTP 200 with a JSON array of all :Service: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `durationMinutes` (integer), `priceCents` (integer), `description` (string), `category` (string, may be empty), `preProcedureInstructions` (string, may be empty), `postProcedureInstructions` (string, may be empty).
+  - `POST /api/services` accepts a JSON body with `name`, `durationMinutes`, `priceCents`, `description` (all required), and optional `category`, `preProcedureInstructions`, `postProcedureInstructions` (all strings, default to empty string if omitted). Creates a new :Service: row. Returns HTTP 201 with the created :Service:'s JSON including its server-assigned `id`.
   - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` is empty, `description` is empty, `durationMinutes` is not a positive integer multiple of 15, or `priceCents` is negative.
   - :Service: rows are persisted in the data store and survive :WebApp: restarts.
 
@@ -81,18 +81,18 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - Creating two valid :Service: rows with names "Whitening" and "Cleaning" should make `GET /api/services` return them ordered as "Cleaning" then "Whitening".
   - A `POST /api/services` request with `durationMinutes` equal to 10 should return HTTP 400 and should not create a :Service: row.
 - Implement the services update and delete HTTP API on :WebApp:.
-  - `PUT /api/services/:id` accepts a JSON body with the same shape as `POST /api/services` and replaces the matching :Service: row's mutable attributes. Returns HTTP 200 with the updated JSON.
+  - `PUT /api/services/:id` accepts a JSON body with the same shape as `POST /api/services` (including the optional fields) and replaces the matching :Service: row's mutable attributes. Returns HTTP 200 with the updated JSON.
   - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Service: with that `id` exists.
   - PUT returns HTTP 400 with body `{"error": "<message>"}` on the same validation failures as POST.
   - `DELETE /api/services/:id` deletes the matching :Service: row. Returns HTTP 204 with empty body on success.
   - DELETE returns HTTP 404 with body `{"error": "not found"}` if no :Service: with that `id` exists.
 - Add the admin services page to :WebApp: at the route `GET /admin/services`.
-  - On page load the page calls `GET /api/services` and renders the returned :Service: rows as a table with columns Name, Duration (in minutes), Price (formatted as US dollars), Description.
-  - Below the table the page shows an "Add service" form with text inputs for `name`, `durationMinutes`, `priceCents`, and `description`, and a "Create" button.
+  - On page load the page calls `GET /api/services` and renders the returned :Service: rows as a table with columns Category, Name, Duration (in minutes), Price (formatted as US dollars), Description. The Category cell is empty if the service has no category set.
+  - Below the table the page shows an "Add service" form with: text inputs for `name`, `durationMinutes`, `priceCents`, and `description` (all required); and optional inputs for `category` (text input, placeholder "e.g. Preventive, Cosmetic"), `preProcedureInstructions` (textarea, label "Pre-procedure instructions"), and `postProcedureInstructions` (textarea, label "Post-procedure instructions"). A "Create" button submits the form.
   - Clicking "Create" sends `POST /api/services` with the form values. On HTTP 201 the form is cleared and the page re-fetches and re-renders the table. On HTTP 400 the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
 - Wire up edit and delete on the admin services page at `GET /admin/services`.
   - Each table row has an "Edit" button and a "Delete" button.
-  - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/services/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
+  - Clicking "Edit" replaces that row in place with inputs pre-filled with the row's current values (including `category`, `preProcedureInstructions`, `postProcedureInstructions`), a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/services/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
   - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/services/:id` and on HTTP 204 removes the row from the table.
 
   ***acceptance tests***
@@ -270,7 +270,10 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - The summary object has top-level keys `practice`, `services`, `staff`, and `workingHours`. Each value has `created` and `updated` integer counts.
   - If no :Practice: row exists, the endpoint creates a demo :Practice: with name `Bright Smile Dental Studio`, address `1250 Maple Avenue, Springfield`, PhoneDisplay `(555) 014-2378`, GreetingStyle `warm`, ToneProfile `friendly`, ClosingStyle `standard`, AgentGender `female`, AgentName `Maya`, and HoursOfOperation Monday through Friday from `09:00` to `17:00`.
   - If a :Practice: row already exists, the endpoint preserves it and reports zero practice records created and zero practice records updated.
-  - The endpoint creates or updates three demo :Service: rows: `Routine Cleaning` with DurationMinutes 60 and PriceCents 12000; `Dental Checkup` with DurationMinutes 30 and PriceCents 8500; `Teeth Whitening` with DurationMinutes 90 and PriceCents 25000. Each demo :Service: has a non-empty English description suitable for the voice agent to read.
+  - The endpoint creates or updates three demo :Service: rows, each with a non-empty English description, category, and pre/post procedure instructions:
+    - `Routine Cleaning`: DurationMinutes 60, PriceCents 12000, Category "Preventive", PreProcedureInstructions "Please brush and floss before your appointment.", PostProcedureInstructions "Avoid eating or drinking for 30 minutes after your cleaning."
+    - `Dental Checkup`: DurationMinutes 30, PriceCents 8500, Category "Preventive", PreProcedureInstructions "No special preparation is needed for your checkup.", PostProcedureInstructions "You can eat and drink normally after your checkup."
+    - `Teeth Whitening`: DurationMinutes 90, PriceCents 25000, Category "Cosmetic", PreProcedureInstructions "Avoid coffee, tea, red wine, and dark foods for 24 hours before your whitening session.", PostProcedureInstructions "Avoid staining foods and drinks for 24 hours after your whitening treatment."
   - The endpoint creates or updates three demo :Staff: rows: `Dr. Maya Chen` with Role `Dentist`; `Dr. Oliver Grant` with Role `Dentist`; and `Sofia Ramirez` with Role `Hygienist`. Each demo :Staff: row has a short non-empty English bio.
   - The endpoint creates or updates Monday through Friday demo :WorkingHours: rows for each demo :Staff: member. Demo dentists work `09:00` to `17:00`; the demo hygienist works `08:30` to `15:30`.
   - The endpoint never deletes rows and never changes non-demo :Service:, :Staff:, or :WorkingHours: rows.
