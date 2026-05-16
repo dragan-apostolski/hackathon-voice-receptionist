@@ -1,0 +1,24 @@
+---
+description: Personality, tone, and interaction-behaviour concepts for the dental voice receptionist agent.
+---
+
+***definitions***
+- :ToneProfile: is a configuration value that controls the register the voice agent uses throughout the entire conversation.
+  - Values: `friendly` (conversational warmth; light and human; brief small talk permitted — this is the default), `professional` (formal register; minimal small talk; maximises efficiency), `gentle` (softer pacing; extra acknowledgement of patient concerns; more reassurance built into transitions — recommended for practices with a high proportion of anxious patients).
+
+- :GreetingStyle: is a configuration value that controls the opening line the agent uses at the start of every call.
+  - Values: `warm` ("Hi there, welcome to [PRACTICE_NAME]! How can we help you today?" — this is the default), `professional` ("Good [TIME_OF_DAY], you've reached [PRACTICE_NAME]. How may I assist you?"), `friendly_first_name` ("Hey! Thanks for reaching out to [PRACTICE_NAME]. What can we do for you?"), `custom` (uses the practice's CustomGreeting text verbatim).
+  - The tokens [PRACTICE_NAME] and [TIME_OF_DAY] are substituted at runtime from the practice's Name and the current hour ("morning" before noon, "afternoon" from noon onward).
+
+- :ClosingStyle: is a configuration value that controls the agent's closing line after a resolved interaction.
+  - Values: `standard` ("Is there anything else I can help you with? Have a great day!" — this is the default), `appointment_focused` ("We'll see you [DATE_TIME]! Let us know if anything changes."), `custom` (uses the practice's CustomClosing text verbatim).
+  - The token [DATE_TIME] is substituted with the confirmed appointment date and time where applicable.
+
+- :SensitiveContext: is a situation detected during a call that requires the agent to adapt its behaviour.
+  - Values: `anxious` (patient signals worry about a procedure, visit, or diagnosis), `urgent` (patient describes pain, swelling, or an acute dental emergency), `confused` (patient uses unclear phrasing, contradicts themselves, or moves slowly through the conversation), `complaint` (patient expresses dissatisfaction with the practice, a past experience, or the current interaction).
+
+***implementation reqs***
+- The personality configuration is injected as the first block of the agent system prompt at session start. The practice's Name, GreetingStyle, ToneProfile, ClosingStyle, CustomGreeting, and CustomClosing values are substituted into the appropriate tokens before injection.
+- Hard behavioural rules — no clinical opinions, no invented appointment availability, no unsolicited use of the patient's name, no judgment of patient habits, no abrupt call endings — are injected unconditionally into the system prompt and cannot be overridden by any provider configuration value.
+- If GreetingStyle is `custom` and the practice's CustomGreeting is empty or unset, the agent falls back to the `warm` preset.
+- If ClosingStyle is `custom` and the practice's CustomClosing is empty or unset, the agent falls back to the `standard` preset.
