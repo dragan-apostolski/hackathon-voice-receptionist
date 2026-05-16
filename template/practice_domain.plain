@@ -1,0 +1,17 @@
+---
+description: Shared domain concepts for the dental voice receptionist project — used by both the Next.js web module and the Python LiveKit voice agent module.
+---
+
+***definitions***
+- :Patient: is a person who calls the practice through the call simulator to ask about services, hours, staff, or to book an appointment.
+- :PracticeAdmin: is a person at the dental practice who uses the web admin UI to configure the practice (services, staff, working hours, greeting). The MVP has exactly one :PracticeAdmin: and no authentication.
+- :Staff: is a dentist or hygienist employed by the practice. :Staff: members are entered and edited by :PracticeAdmin:, do not log in themselves, and are referenced by the voice agent when discussing availability and booking appointments with :Patient:. :Staff: has:
+  - Name - the staff member's full name as the agent should say it (required, non-empty)
+  - Role - a short job title such as "Dentist" or "Hygienist" (required, non-empty)
+  - Bio - a short English description the agent may read when the :Patient: asks about a specific staff member (optional)
+- :Practice: is the dental practice that the system serves. Exactly one :Practice: exists in the MVP. :Practice: has:
+  - Name - the public-facing name of the practice (required, non-empty)
+  - Address - a free-form street address (required, non-empty)
+  - PhoneDisplay - the phone number the agent reads aloud when the :Patient: asks for it (required, non-empty)
+  - HoursOfOperation - a weekly recurring schedule of when the practice is open, with one entry per day of week that has open hours (each entry: day of week from Monday..Sunday, open time, close time)
+  - GreetingTemplate - a short English phrase the voice agent uses to greet the :Patient: at the start of a call (required, non-empty)

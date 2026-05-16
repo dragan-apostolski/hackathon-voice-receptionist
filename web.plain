@@ -1,0 +1,11 @@
+---
+import:
+  - practice_domain
+description: Web app for the dental voice receptionist MVP (single practice, no auth, English only). Provides an admin UI for :PracticeAdmin: to configure services, :Staff:, working hours, and greeting, a :Patient:-facing call simulator that puts the patient's browser into a LiveKit room with the voice agent, and a read-only log of past calls and bookings.
+---
+
+***definitions***
+> Module-specific concepts (admin UI, simulator UI, call records) are added here as Phase 1 topics are walked.
+
+***functional specs***
+> Functional specs are added here via the add-functional-spec / add-functional-specs skills as Phase 1 topics are walked.
