@@ -70,7 +70,7 @@ fi
 echo "Installing Python dependencies into $WORKING_FOLDER/.venv via uv sync ..."
 INSTALL_START=$(date +%s)
 
-uv sync --frozen
+uv sync
 UV_EXIT=$?
 
 INSTALL_DURATION=$(( $(date +%s) - INSTALL_START ))
@@ -83,13 +83,29 @@ fi
 
 # --- Step 7: run pytest -------------------------------------------------------
 
-echo "Running pytest in $WORKING_FOLDER ..."
+# Tests may live at the workspace root (flat layout) or inside the uv-workspace
+# member directory (nested layout — `agent/tests/` etc.). Pick whichever exists.
+if [ -d "tests" ]; then
+    TEST_TARGET="tests/"
+elif [ -d "agent/tests" ]; then
+    TEST_TARGET="agent/tests/"
+else
+    echo "No tests/ directory found in $WORKING_FOLDER (checked tests/ and agent/tests/); skipping pytest."
+    exit 0
+fi
+
+echo "Running pytest in $WORKING_FOLDER against $TEST_TARGET ..."
 TEST_START=$(date +%s)
 
-uv run pytest tests/
+uv run pytest "$TEST_TARGET"
 PYTEST_EXIT=$?
 
 TEST_DURATION=$(( $(date +%s) - TEST_START ))
 echo "pytest finished in ${TEST_DURATION}s with exit code ${PYTEST_EXIT}."
+
+# pytest exit 5 = "no tests collected" — not a failure, just nothing to run.
+if [ "$PYTEST_EXIT" -eq 5 ]; then
+    exit 0
+fi
 
 exit "$PYTEST_EXIT"

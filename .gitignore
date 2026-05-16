@@ -2,6 +2,9 @@
 skills-lock.json
 .DS_Store
 
+# secrets — never commit
+.env
+
 # codeplain generated artifacts
 /plain_modules/
 /conformance_tests/
@@ -9,3 +12,6 @@ skills-lock.json
 /dist_conformance_tests/
 /.tmp/
 /codeplain.log
+*.log
+web
+agent
