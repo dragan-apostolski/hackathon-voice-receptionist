@@ -14,7 +14,7 @@ The admin surface should look like a polished healthcare operations dashboard, n
 
 ## Dashboard Layout
 
-- Top navigation is a horizontal app bar with clear spacing between links and an active state.
+- Top navigation is a horizontal app bar rendered as a `<nav>` element with `display: flex`, `gap` between links, a bottom border, and horizontal padding. Links must never be concatenated without whitespace — each link is a separate `<a>` or `<Link>` element with its own padding. The active link has a visually distinct style (e.g. font-semibold + underline or a teal border-bottom).
 - The dashboard header has the title on the left and the primary "Seed demo data" action on the right.
 - Practice setup is a card with three rows. Each row has a label on the left and a colored status badge on the right.
 - Summary metrics are four equal cards in a responsive grid. Each card has a small uppercase label and a large numeric value.
