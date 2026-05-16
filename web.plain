@@ -8,6 +8,7 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 ***definitions***
 - :AdminSurface: is the browser-facing part of :WebApp: used by :PracticeAdmin: to manage :Practice:, :Service:, :Staff:, :WorkingHours:, :Appointment:, and :Call: information.
 - :AdminDashboard: is the admin overview page of :AdminSurface:. It helps :PracticeAdmin: see setup status and navigate to the detailed admin pages.
+- :DemoSeedData: is a set of realistic demo records created by :WebApp: for hackathon demonstrations. :DemoSeedData: is internally marked as demo-owned so it can be updated by later seed runs without overwriting non-demo user data.
 
 ***implementation reqs***
 - :Implementation: of :WebApp: should be a Next.js application using TypeScript, React, and Node.js.
@@ -266,3 +267,45 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - Upcoming booked appointments count only :Appointment: rows whose `status` is "booked" and whose `startAt` is not earlier than the current local date and time.
   - The page shows quick links labelled "Edit practice", "Manage services", "Manage staff", "View appointments", and "View call log" that navigate to `/admin/practice`, `/admin/services`, `/admin/staff`, `/admin/appointments`, and `/admin/calls`.
   - If any dashboard data request fails, the page still renders the navigation bar and shows the text "Dashboard data could not be loaded." in place of the setup section and summary counters.
+- Implement the setup-data part of the demo seed HTTP API on :WebApp:.
+  - `POST /api/demo/seed` creates or updates the setup records in :DemoSeedData: and returns HTTP 200 with a JSON summary object.
+  - The summary object has top-level keys `practice`, `services`, `staff`, and `workingHours`. Each value has `created` and `updated` integer counts.
+  - If no :Practice: row exists, the endpoint creates a demo :Practice: with name `Bright Smile Dental Studio`, address `1250 Maple Avenue, Springfield`, PhoneDisplay `(555) 014-2378`, GreetingTemplate `Hello, thank you for calling Bright Smile Dental Studio. How can I help you today?`, and HoursOfOperation Monday through Friday from `09:00` to `17:00`.
+  - If a :Practice: row already exists, the endpoint preserves it and reports zero practice records created and zero practice records updated.
+  - The endpoint creates or updates three demo :Service: rows: `Routine Cleaning` with DurationMinutes 60 and PriceCents 12000; `Dental Checkup` with DurationMinutes 30 and PriceCents 8500; `Teeth Whitening` with DurationMinutes 90 and PriceCents 25000. Each demo :Service: has a non-empty English description suitable for the voice agent to read.
+  - The endpoint creates or updates three demo :Staff: rows: `Dr. Maya Chen` with Role `Dentist`; `Dr. Oliver Grant` with Role `Dentist`; and `Sofia Ramirez` with Role `Hygienist`. Each demo :Staff: row has a short non-empty English bio.
+  - The endpoint creates or updates Monday through Friday demo :WorkingHours: rows for each demo :Staff: member. Demo dentists work `09:00` to `17:00`; the demo hygienist works `08:30` to `15:30`.
+  - The endpoint never deletes rows and never changes non-demo :Service:, :Staff:, or :WorkingHours: rows.
+  - Running the endpoint more than once reuses the same demo-owned setup records instead of creating duplicates.
+- Extend `POST /api/demo/seed` to create demo appointments and calls.
+  - The endpoint creates or updates three demo :Appointment: rows with Status `booked`, distributed across the seeded services and staff.
+  - Demo appointment start times are future local datetimes relative to the seed run so the dashboard always has upcoming booked appointments after seeding.
+  - The endpoint creates or updates three ended demo :Call: rows.
+  - Each demo :Call: has a non-empty PatientPhone, StartedAt, EndedAt, Status `ended`, Summary, and at least two transcript turns.
+  - At least one demo :Call: references one seeded :Appointment: through AppointmentRef.
+  - The response summary object also has top-level keys `appointments` and `calls`, each with `created` and `updated` integer counts.
+  - Running the endpoint more than once reuses the same demo-owned appointments and calls instead of creating duplicates.
+  - The endpoint never deletes rows and never changes non-demo :Appointment: or :Call: rows.
+- Implement the demo metadata HTTP API on :WebApp:.
+  - `GET /api/demo/metadata` returns HTTP 200 with JSON body `{"services": ["<id>"], "staff": ["<id>"], "workingHours": ["<id>"], "appointments": ["<id>"], "calls": ["<id>"]}`.
+  - Each array contains the ids of records currently marked as demo-owned for that entity type.
+  - If no demo-owned records exist for an entity type, the corresponding array is empty.
+  - The endpoint does not include the :Practice: row because the single practice row may be user-owned even after seeding.
+  - Demo ownership metadata is internal to :WebApp: and is omitted from `GET /api/practice`, `GET /api/services`, `GET /api/staff`, `GET /api/staff/:staffId/working-hours`, `GET /api/appointments`, `GET /api/calls`, and `GET /api/calls/:id`.
+- Add demo seeding controls to :AdminDashboard:.
+  - The `/admin` page shows a button labelled "Seed demo data".
+  - Clicking "Seed demo data" opens a confirmation prompt before any data is changed.
+  - If :PracticeAdmin: cancels the prompt, no HTTP request is sent and the page stays unchanged.
+  - If :PracticeAdmin: confirms the prompt, the page sends `POST /api/demo/seed`.
+  - While the request is in flight, the seed button is disabled.
+  - On HTTP 200, the page refreshes the same dashboard data it loads on page load and shows a non-blocking success message that includes the summary counts returned by the endpoint.
+  - On any non-200 response or network error, the page shows a non-blocking error banner with text `Demo data could not be seeded.` and leaves the previously loaded dashboard data visible.
+- Show demo badges on admin pages.
+  - The services, staff, staff working-hours, appointments, call log, and call detail admin pages call `GET /api/demo/metadata` when they load.
+  - On the services page, each :Service: row whose id appears in `services` shows a small badge with text `Demo`.
+  - On the staff page, each :Staff: row whose id appears in `staff` shows a small badge with text `Demo`.
+  - On the staff working-hours page, each :WorkingHours: row whose id appears in `workingHours` shows a small badge with text `Demo`.
+  - On the appointments page, each :Appointment: row whose id appears in `appointments` shows a small badge with text `Demo`.
+  - On the call log page, each :Call: row whose id appears in `calls` shows a small badge with text `Demo`.
+  - On the call detail page, the header section shows a small badge with text `Demo` when that :Call:'s id appears in `calls`.
+  - If `GET /api/demo/metadata` fails, the admin page still renders its main data and omits demo badges.
