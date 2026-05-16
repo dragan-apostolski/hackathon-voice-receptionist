@@ -1,11 +1,23 @@
 ---
 import:
   - practice_domain
-description: Python LiveKit voice agent worker for the dental voice receptionist MVP. Joins a LiveKit room when a simulated call starts, greets the :Patient:, answers questions about services, :Staff:, and hours in English, and books appointments through a STT → LLM → TTS pipeline.
+  - web_agent_contract
+description: "Python LiveKit voice agent worker for the dental voice receptionist MVP. Joins a LiveKit room when a simulated call starts, greets the :Patient:, answers questions about services, :Staff:, and hours in English, and books appointments through a STT -> LLM -> TTS pipeline."
 ---
 
 ***definitions***
-- :VoiceAgent: is the voice-agent worker defined by :plainImplementationCode: of this module. :VoiceAgent: connects to a LiveKit room when a :Call: starts, speaks to the :Patient: in English through a speech-to-text → language-model → text-to-speech pipeline, answers questions about :Practice:, :Service:, and :Staff:, books :Appointment: entries on behalf of the :Patient:, and persists transcript and summary back into the :Call: record.
+- :VoiceAgent: is the voice-agent worker defined by this module. :VoiceAgent: connects to a LiveKit room when a :Call: starts, speaks to the :Patient: in English through a speech-to-text to language-model to text-to-speech pipeline, answers questions about :Practice:, :Service:, and :Staff:, books :Appointment: entries on behalf of the :Patient:, and persists transcript and summary back into the :Call: record.
+
+***implementation reqs***
+- :Implementation: of :VoiceAgent: should be a Python 3.12 worker using the LiveKit Agents SDK.
+- :Implementation: of :VoiceAgent: should read `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `WEB_APP_BASE_URL` from server-side environment variables.
+- :Implementation: of :VoiceAgent: should use separate injectable adapters for speech-to-text, language-model, text-to-speech, LiveKit room operations, and :WebAgentHttpContract: HTTP calls so behavior can be unit tested without a real LiveKit room.
+- :Implementation: of :VoiceAgent: should keep voice responses short enough for a phone conversation and should avoid adding tools or prompt context that are not needed for the current :Call:.
+- :Implementation: of :VoiceAgent: should include unit tests for greeting, practice-context loading failures, transcript append behavior, booking slot selection, booking conflict retry, and call finalization.
+
+***test reqs***
+- :ConformanceTests: for :VoiceAgent: should mock LiveKit, speech-to-text, language-model, text-to-speech, and :WebAgentHttpContract: HTTP calls.
+- :ConformanceTests: for :VoiceAgent: should not require real LiveKit credentials and should not skip tests.
 
 ***implementation reqs***
 

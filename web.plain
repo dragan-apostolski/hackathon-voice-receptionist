@@ -1,11 +1,23 @@
 ---
 import:
   - practice_domain
-description: Web app for the dental voice receptionist MVP (single practice, no auth, English only). Provides an admin UI for :PracticeAdmin: to configure services, :Staff:, working hours, and greeting, a :Patient:-facing call simulator that puts the patient's browser into a LiveKit room with the voice agent, and a read-only log of past calls and bookings.
+  - web_agent_contract
+description: "Web app for the dental voice receptionist MVP (single practice, no auth, English only). Provides an admin UI for :PracticeAdmin: to configure services, :Staff:, working hours, and greeting, a :Patient:-facing call simulator that puts the patient's browser into a LiveKit room with the voice agent, and a read-only log of past calls and bookings."
 ---
 
 ***definitions***
-- :WebApp: is the web application defined by :plainImplementationCode: of this module. :WebApp: serves two browser-facing surfaces (the admin UI used by :PracticeAdmin: and the patient-facing call simulator used by :Patient:) and the JSON HTTP APIs that the voice agent calls during a :Call:.
+- :AdminSurface: is the browser-facing part of :WebApp: used by :PracticeAdmin: to manage :Practice:, :Service:, :Staff:, :WorkingHours:, :Appointment:, and :Call: information.
+
+***implementation reqs***
+- :Implementation: of :WebApp: should be a Next.js application using TypeScript, React, and Node.js.
+- :Implementation: of :WebApp: should persist application data in a local SQLite database file so data survives server restarts during the hackathon demo.
+- :Implementation: of :WebApp: should read LiveKit server URL, API key, and API secret from server-side environment variables named `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`.
+- :Implementation: of :WebApp: should keep all secret values on the server and never expose the LiveKit API secret to browser code.
+- :Implementation: of :WebApp: should include unit tests for validation helpers, availability calculation, appointment conflict detection, and call lifecycle storage.
+
+***test reqs***
+- :ConformanceTests: for :WebApp: should use HTTP requests against a running local server and should not skip tests.
+- :ConformanceTests: for :WebApp: should use an isolated temporary data store for each test run.
 
 ***implementation reqs***
 
@@ -42,6 +54,10 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - PUT returns HTTP 200 with the saved JSON on success.
   - PUT returns HTTP 400 with body `{"error": "<message>"}` if any required attribute is missing or empty, or if any time string is not a valid "HH:MM" 24-hour value.
   - The :Practice: row is persisted in the data store with one column per attribute, and survives :WebApp: restarts.
+
+  ***acceptance tests***
+  - After a valid `PUT /api/practice`, a later `GET /api/practice` after a :WebApp: restart should return the saved practice JSON.
+  - A `PUT /api/practice` request with an empty `name` should return HTTP 400 and should not overwrite the previously saved practice row.
 - Add the admin practice page to :WebApp: at the route `GET /admin`.
   - The page is an HTML page that lets :PracticeAdmin: view the single :Practice: row in an editable form. No submit action is wired yet by this spec.
   - On page load the page calls `GET /api/practice` and pre-fills its form fields with the returned values; if the response is `{}` all fields start empty.
@@ -52,11 +68,19 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Clicking "Save" sends `PUT /api/practice` with the current form values as a JSON body matching the shape used by `GET /api/practice`.
   - On HTTP 200 from PUT the page shows a "Saved" confirmation banner above the form for at least 3 seconds before auto-dismissing.
   - On HTTP 400 from PUT the page shows the returned `error` message in a red banner above the form and keeps the user's current input.
+
+  ***acceptance tests***
+  - When saving succeeds, the admin practice page should show the "Saved" banner without clearing the saved form values.
+  - When saving returns HTTP 400, the admin practice page should display the returned error message and preserve the unsaved form values.
 - Implement the services list and create HTTP API on :WebApp:.
   - `GET /api/services` returns HTTP 200 with a JSON array of all :Service: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `durationMinutes` (integer), `priceCents` (integer), `description` (string).
   - `POST /api/services` accepts a JSON body with `name`, `durationMinutes`, `priceCents`, `description` (all required) and creates a new :Service: row. Returns HTTP 201 with the created :Service:'s JSON including its server-assigned `id`.
   - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` is empty, `description` is empty, `durationMinutes` is not a positive integer multiple of 15, or `priceCents` is negative.
   - :Service: rows are persisted in the data store and survive :WebApp: restarts.
+
+  ***acceptance tests***
+  - Creating two valid :Service: rows with names "Whitening" and "Cleaning" should make `GET /api/services` return them ordered as "Cleaning" then "Whitening".
+  - A `POST /api/services` request with `durationMinutes` equal to 10 should return HTTP 400 and should not create a :Service: row.
 - Implement the services update and delete HTTP API on :WebApp:.
   - `PUT /api/services/:id` accepts a JSON body with the same shape as `POST /api/services` and replaces the matching :Service: row's mutable attributes. Returns HTTP 200 with the updated JSON.
   - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Service: with that `id` exists.
@@ -71,11 +95,19 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Each table row has an "Edit" button and a "Delete" button.
   - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/services/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
   - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/services/:id` and on HTTP 204 removes the row from the table.
+
+  ***acceptance tests***
+  - When an inline service edit returns HTTP 400, the row should remain in edit mode and show the returned error message.
+  - After confirming deletion of a service that returns HTTP 204, that service should no longer appear in the services table.
 - Implement the staff list and create HTTP API on :WebApp:.
   - `GET /api/staff` returns HTTP 200 with a JSON array of all :Staff: rows ordered by name ascending. Each row has fields `id` (string), `name` (string), `role` (string), `bio` (string, may be empty).
   - `POST /api/staff` accepts a JSON body with `name`, `role` (both required, non-empty) and `bio` (optional, defaults to empty string) and creates a new :Staff: row. Returns HTTP 201 with the created :Staff:'s JSON including its server-assigned `id`.
   - POST returns HTTP 400 with body `{"error": "<message>"}` if `name` or `role` is missing or empty.
   - :Staff: rows are persisted in the data store and survive :WebApp: restarts.
+
+  ***acceptance tests***
+  - Creating two valid :Staff: rows should make `GET /api/staff` return them ordered by name ascending.
+  - A `POST /api/staff` request with an empty `role` should return HTTP 400 and should not create a :Staff: row.
 - Implement the staff update and delete HTTP API on :WebApp:.
   - `PUT /api/staff/:id` accepts a JSON body with the same shape as `POST /api/staff` and replaces the matching :Staff: row's mutable attributes. Returns HTTP 200 with the updated JSON.
   - PUT returns HTTP 404 with body `{"error": "not found"}` if no :Staff: with that `id` exists.
@@ -91,6 +123,10 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Each table row has an "Edit" button and a "Delete" button.
   - Clicking "Edit" replaces that row in place with text inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/staff/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
   - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/staff/:id` and on HTTP 204 removes the row from the table. On HTTP 409 the page shows the returned `error` message in a red banner near the row and leaves the row in place.
+
+  ***acceptance tests***
+  - When deleting a staff row returns HTTP 409 with `{"error": "staff has appointments"}`, the row should remain visible and the page should show that error near the row.
+  - Clicking "Cancel" during staff inline editing should restore the row's original displayed values.
 - Implement the working-hours list and create HTTP API on :WebApp:.
   - `GET /api/staff/:staffId/working-hours` returns HTTP 200 with a JSON array of all :WorkingHours: rows whose StaffRef matches `:staffId`, ordered by DayOfWeek then StartTime ascending. Each row has fields `id` (string), `staffId` (string), `dayOfWeek` ("Monday".."Sunday"), `startTime` ("HH:MM"), `endTime` ("HH:MM").
   - GET returns HTTP 404 with body `{"error": "staff not found"}` if no :Staff: with that `staffId` exists.
@@ -98,6 +134,10 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - POST returns HTTP 400 with body `{"error": "<message>"}` if any field is missing, if `dayOfWeek` is not one of "Monday".."Sunday", if either time is not a valid "HH:MM" 24-hour string aligned to a 15-minute mark (00, 15, 30, 45 minutes), or if `endTime` is not strictly later than `startTime`.
   - POST returns HTTP 404 if no :Staff: with that `staffId` exists.
   - :WorkingHours: rows are persisted in the data store and survive :WebApp: restarts.
+
+  ***acceptance tests***
+  - A `POST /api/staff/:staffId/working-hours` request with `startTime` "09:10" should return HTTP 400 and should not create a :WorkingHours: row.
+  - After creating a valid :WorkingHours: row, a later `GET /api/staff/:staffId/working-hours` after a :WebApp: restart should include that row.
 - Implement the working-hours update and delete HTTP API on :WebApp:.
   - `PUT /api/working-hours/:id` accepts a JSON body with the same shape as `POST /api/staff/:staffId/working-hours` (without `staffId`) and replaces the matching :WorkingHours: row's mutable attributes. Returns HTTP 200 with the updated JSON including its `staffId`.
   - PUT returns HTTP 404 with body `{"error": "not found"}` if no :WorkingHours: with that `id` exists.
@@ -114,6 +154,10 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Each working-hours row has an "Edit" button and a "Delete" button.
   - Clicking "Edit" replaces that row in place with a day dropdown and time inputs pre-filled with the row's current values, a "Save" button, and a "Cancel" button. Clicking "Save" sends `PUT /api/working-hours/:id` and on HTTP 200 collapses the row back to display mode showing the new values. On HTTP 400 the inline edit shows the returned `error` message and keeps the user's current input. Clicking "Cancel" collapses the row back to display mode showing the original values.
   - Clicking "Delete" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `DELETE /api/working-hours/:id` and on HTTP 204 removes the row from the table.
+
+  ***acceptance tests***
+  - When a working-hours inline edit returns HTTP 400, the row should remain in edit mode and show the returned error message.
+  - After confirming deletion of a working-hours row that returns HTTP 204, that row should no longer appear in the working-hours table.
 - Implement the availability query HTTP API on :WebApp:.
   - `GET /api/availability?serviceId=<id>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` returns HTTP 200 with a JSON array of available time slots.
   - Each element in the array is an object with `staffId` (string), `staffName` (string), `serviceId` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `endAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM").
@@ -174,6 +218,10 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Consecutive rows that share the same Date value are grouped under a date header row that spans the full table width.
   - If the API returns an empty array, the page shows the text "No appointments yet." in place of the table.
   - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
+
+  ***acceptance tests***
+  - When `GET /api/appointments` returns an empty array, the page should show "No appointments yet." and should not render an appointments table.
+  - Consecutive appointments on the same date should appear under one shared date header.
 - Implement the call log read HTTP API on :WebApp:.
   - `GET /api/calls` returns HTTP 200 with a JSON array of all :Call: rows ordered by `startedAt` descending. Each element has fields `id`, `patientPhone`, `startedAt`, `endedAt` (nullable), `status`, `summary` (nullable), `appointmentId` (nullable). The `transcript` field is omitted from the list response.
   - `GET /api/calls/:id` returns HTTP 200 with the full JSON of one :Call: row, including the `transcript` array. Each transcript element has fields `speaker` ("patient" or "agent"), `text` (string), `at` (ISO 8601 timestamp).
@@ -184,13 +232,25 @@ description: Web app for the dental voice receptionist MVP (single practice, no 
   - Each row links to `/admin/calls/:id`.
   - If the API returns an empty array, the page shows the text "No calls yet." in place of the table.
   - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
+
+  ***acceptance tests***
+  - When `GET /api/calls` returns an empty array, the page should show "No calls yet." and should not render a call-log table.
+  - Each rendered call-log row should navigate to `/admin/calls/:id` for that row's :Call: when clicked.
 - Add the admin call detail page to :WebApp: at the route `GET /admin/calls/:id`.
   - On page load the page calls `GET /api/calls/:id`. If the response is HTTP 404 the page renders the text "Call not found." and a link back to `/admin/calls`.
   - On success the page shows a header section with the :Call:'s Phone, Started timestamp, Ended timestamp (or "still in progress"), Status, and Summary.
   - Below the header the page renders the transcript as a chronological list of turns. Each turn shows the speaker label ("Patient" or "Agent") in bold followed by the turn text. Turns from the same speaker are visually grouped with a small vertical gap between speakers.
   - If the transcript array is empty the page shows the text "Transcript is empty." in place of the turn list.
   - The page has a header bar with a link labelled "Back to call log" pointing to `/admin/calls`.
+
+  ***acceptance tests***
+  - When `GET /api/calls/:id` returns HTTP 404, the page should show "Call not found." and a link back to `/admin/calls`.
+  - When the returned transcript is empty, the page should show "Transcript is empty." and should not render transcript turns.
 - Add a top navigation bar to every admin page in :WebApp:.
   - Every page whose path begins with `/admin` renders a navigation bar at the top of the page containing five links: "Practice" → `/admin`, "Services" → `/admin/services`, "Staff" → `/admin/staff`, "Appointments" → `/admin/appointments`, "Call log" → `/admin/calls`.
   - The link whose target matches the current page (or the closest parent path under `/admin/staff/:id/hours` → "Staff", and `/admin/calls/:id` → "Call log") is rendered with a visually distinct active style (for example a bold weight and an underline).
   - The navigation bar replaces any prior per-page "Back to admin" or "Back to call log" header link defined by earlier specs.
+
+  ***acceptance tests***
+  - On `/admin/staff/example-id/hours`, the "Staff" navigation link should have the active style and no "Back to admin" link should be rendered.
+  - On `/admin/calls/example-id`, the "Call log" navigation link should have the active style and no "Back to call log" link should be rendered.
