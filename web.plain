@@ -235,11 +235,25 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - After the room has been left and the POST has returned (success or failure), the page returns to the dial-pad state with the displayed number cleared and shows a non-blocking "Call ended" confirmation banner above the dial pad for at least 3 seconds.
 - Implement the appointments list HTTP API on :WebApp:.
   - `GET /api/appointments` returns HTTP 200 with a JSON array of all :Appointment: rows ordered by `startAt` ascending, with `id` ascending as a tiebreaker.
+  - Accepts an optional query parameter `patientPhone` (string). When provided, only rows whose `patientPhone` exactly matches the parameter are returned. When omitted, all rows are returned.
   - Each element has fields: `id` (string), `serviceId` (string), `serviceName` (string, the joined :Service: `Name`), `staffId` (string), `staffName` (string, the joined :Staff: `Name`), `patientPhone` (string), `patientName` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `endAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `status` (string), `createdAt` (ISO 8601 timestamp).
+- Implement the appointment cancel HTTP API on :WebApp:.
+  - `POST /api/appointments/:id/cancel` sets the :Appointment:'s `status` to "cancelled". Returns HTTP 200 with the updated :Appointment: JSON.
+  - Returns HTTP 404 with body `{"error": "not found"}` if no :Appointment: with that `id` exists.
+  - Returns HTTP 409 with body `{"error": "already cancelled"}` if the appointment's `status` is already "cancelled".
+- Implement the appointment reschedule HTTP API on :WebApp:.
+  - `POST /api/appointments/:id/reschedule` accepts a JSON body with `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"; required).
+  - Validates that the new `[startAt, startAt + DurationMinutes)` window falls within at least one :WorkingHours: entry of the existing :Appointment:'s StaffRef on the matching day of week, and does not overlap any other :Appointment: of the same StaffRef whose status is "booked" (excluding the appointment being rescheduled itself).
+  - On success, updates the :Appointment:'s `startAt`, `endAt` (recomputed as `startAt` plus the service's `DurationMinutes`), and `status` to "booked". Returns HTTP 200 with the updated :Appointment: JSON.
+  - Returns HTTP 400 with body `{"error": "<message>"}` if `startAt` is missing or not aligned to a quarter-hour mark (minute 00, 15, 30, or 45).
+  - Returns HTTP 404 with body `{"error": "not found"}` if no :Appointment: with that `id` exists.
+  - Returns HTTP 409 with body `{"error": "slot unavailable"}` if the new window is not available.
 - Add the admin appointments page to :WebApp: at the route `GET /admin/appointments`.
-  - On page load the page calls `GET /api/appointments` and renders the returned rows as a read-only table with columns Date, Time, Service, Staff, Patient name, Patient phone, Status, in the order the API returned them.
+  - On page load the page calls `GET /api/appointments` and renders the returned rows as a read-only table with columns Date, Time, Service, Staff, Patient name, Patient phone, Status, Actions, in the order the API returned them.
   - Date is formatted as `EEE, MMM d yyyy` (e.g. "Sun, Jan 5 2026"). Time is formatted as the local time range `HH:MM - HH:MM` (e.g. "09:00 - 10:00").
   - Consecutive rows that share the same Date value are grouped under a date header row that spans the full table width.
+  - Each row whose `status` is "booked" shows a "Cancel" button in the Actions column. Clicking "Cancel" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `POST /api/appointments/:id/cancel` and on HTTP 200 updates the row's displayed status to "cancelled" and removes the "Cancel" button. On HTTP 409 the page shows the returned error message near the row.
+  - Rows whose `status` is "cancelled" show no action button and are displayed with a muted/greyed style.
   - If the API returns an empty array, the page shows the text "No appointments yet." in place of the table.
   - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
 

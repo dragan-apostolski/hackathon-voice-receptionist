@@ -45,7 +45,7 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - ServiceRef - the :Service: being booked (required)
   - StartAt - the local date and time when the appointment begins, aligned to a quarter-hour mark (00, 15, 30, or 45 minutes past the hour) (required)
   - EndAt - the local date and time when the appointment ends, equal to StartAt plus the DurationMinutes of the referenced :Service: (required, derived)
-  - Status - either "booked" or "cancelled"; in the MVP only "booked" is used and is the default (required)
+  - Status - either "booked" or "cancelled"; a booked appointment can be cancelled by the :Patient: through the voice agent or by :PracticeAdmin: through the admin UI; a cancelled appointment can be rescheduled to a new time, which resets its status to "booked" with updated StartAt and EndAt (required)
   - CreatedAt - the timestamp when the appointment record was created (required)
   - Validity - an :Appointment: is valid only if it falls entirely within at least one :WorkingHours: entry of its StaffRef on the matching DayOfWeek and does not overlap any other :Appointment: of the same StaffRef whose Status is "booked"
 - :Call: is the persistent record of one simulated phone call between a :Patient: and the voice agent. :Call: has:
