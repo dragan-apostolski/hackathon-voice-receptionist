@@ -185,22 +185,22 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - POST `/api/calls/:id/end` returns HTTP 404 with body `{"error": "not found"}` if no :Call: with that `id` exists, or HTTP 404 with body `{"error": "appointment not found"}` if `appointmentId` was provided but no :Appointment: with that id exists.
   - POST `/api/calls/:id/end` returns HTTP 409 with body `{"error": "already ended"}` if the call's `status` is already "ended". The :Call: row is not modified in this case.
 - Implement the staff task create HTTP API on :WebApp:.
-  - `POST /api/tasks` accepts a JSON body with `callId` (string, required), `description` (string, required, non-empty), `type` (string, one of "callback" | "action"; required), `priority` (string, one of "normal" | "high"; optional; defaults to "normal"), and `patientName` (string, optional; defaults to empty string).
+  - `POST /api/tasks` accepts a JSON body with `callId` (string, required), `description` (string, required, non-empty), `type` (string, one of "callback" | "action"; required), `priority` (string, one of "normal" | "high"; optional; defaults to "normal"), `patientName` (string, optional; defaults to empty string), and `topic` (string, optional; defaults to empty string).
   - Creates a new :StaffTask: row with `status` "open", `createdAt` set to the current server timestamp in ISO 8601, and `patientPhone` copied from the referenced :Call:.
-  - Returns HTTP 201 with the created :StaffTask:'s JSON including `id`, `callId`, `patientPhone`, `patientName`, `description`, `type`, `priority`, `status`, `createdAt`, `resolvedAt` (null).
+  - Returns HTTP 201 with the created :StaffTask:'s JSON including `id`, `callId`, `patientPhone`, `patientName`, `description`, `topic`, `type`, `priority`, `status`, `createdAt`, `resolvedAt` (null).
   - Returns HTTP 400 with body `{"error": "<message>"}` if `callId` is missing, `description` is empty, or `type` is not "callback" or "action".
   - Returns HTTP 404 with body `{"error": "call not found"}` if no :Call: with that `callId` exists.
   - :StaffTask: rows are persisted in the data store and survive :WebApp: restarts.
 - Implement the staff task list HTTP API on :WebApp:.
   - `GET /api/tasks` accepts an optional query parameter `status` (one of "open" | "done" | "all"; defaults to "open").
   - Returns HTTP 200 with a JSON array of :StaffTask: rows matching the filter, ordered by `priority` descending ("high" before "normal") then `createdAt` descending.
-  - Each element has fields: `id`, `callId`, `patientPhone`, `patientName`, `description`, `type`, `priority`, `status`, `createdAt`, `resolvedAt` (nullable).
+  - Each element has fields: `id`, `callId`, `patientPhone`, `patientName`, `description`, `topic` (string, may be empty), `type`, `priority`, `status`, `createdAt`, `resolvedAt` (nullable).
   - Returns HTTP 400 with body `{"error": "<message>"}` if `status` is provided but is not one of "open", "done", or "all".
 - Implement the staff task update HTTP API on :WebApp:.
   - `PUT /api/tasks/:id` accepts a JSON body with `status` (string, one of "open" | "done"; required).
   - When setting `status` to "done", sets `resolvedAt` to the current server timestamp in ISO 8601.
   - When setting `status` back to "open", clears `resolvedAt` (sets it to null).
-  - Returns HTTP 200 with the updated :StaffTask:'s JSON.
+  - Returns HTTP 200 with the updated :StaffTask:'s JSON including `topic`.
   - Returns HTTP 400 with body `{"error": "<message>"}` if `status` is not "open" or "done".
   - Returns HTTP 404 with body `{"error": "not found"}` if no :StaffTask: with that `id` exists.
 - Implement the LiveKit access-token HTTP API on :WebApp:.
@@ -268,10 +268,10 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - When `GET /api/calls/:id` returns HTTP 404, the page should show "Call not found." and a link back to `/admin/calls`.
   - When the returned transcript is empty, the page should show "Transcript is empty." and should not render transcript turns.
 - Add the admin tasks page to :WebApp: at the route `GET /admin/tasks`.
-  - On page load the page calls `GET /api/tasks?status=open` and renders the returned rows as a table with columns: Created (formatted `EEE, MMM d yyyy HH:MM`), Patient Name (shows "—" if `patientName` is empty), Patient Phone, Type (badge: "Callback" for type "callback", "Action" for type "action"), Priority (badge: "High" styled in amber for priority "high", "Normal" styled in grey for priority "normal"), Description, Call (an icon or text link to `/admin/calls/:callId`), and Actions.
-  - The Actions column has a "Mark done" button per row. Clicking it sends `PUT /api/tasks/:id` with body `{"status": "done"}` and on HTTP 200 removes the row from the table without a full page reload.
-  - Above the table the page shows two filter buttons: "Open" and "All". The active filter is highlighted. Clicking "Open" fetches `GET /api/tasks?status=open`; clicking "All" fetches `GET /api/tasks?status=all`. The default active filter is "Open". In "All" view, completed tasks are displayed with a muted/grayed style, a "Done" status badge, and no "Mark done" button.
-  - If the filtered result is empty, the page shows the text "No open tasks." (when the "Open" filter is active) or "No tasks yet." (when the "All" filter is active) in place of the table.
+  - On page load the page calls `GET /api/tasks?status=open` and renders the returned rows as a table with columns: Created (formatted `EEE, MMM d yyyy HH:MM`), Patient Name (shows "—" if `patientName` is empty), Patient Phone, Topic (rendered as a small grey badge if non-empty; shows "—" if empty), Type (badge: "Callback" for type "callback", "Action" for type "action"), Priority (badge: "High" styled in amber for priority "high", "Normal" styled in grey for priority "normal"), Description, Call (an icon or text link to `/admin/calls/:callId`), and Actions.
+  - The Actions column has a "Mark done" button per open row. Clicking it sends `PUT /api/tasks/:id` with body `{"status": "done"}` and on HTTP 200 removes the row from the table without a full page reload.
+  - Above the table the page shows three filter buttons: "Open", "Completed", and "All". The active filter is highlighted. Clicking "Open" fetches `GET /api/tasks?status=open`; clicking "Completed" fetches `GET /api/tasks?status=done`; clicking "All" fetches `GET /api/tasks?status=all`. The default active filter is "Open". In "Completed" and "All" views, done tasks are displayed with a muted/grayed style and a "Done" status badge but no "Mark done" button.
+  - If the filtered result is empty, the page shows the text "No open tasks." (when the "Open" filter is active), "No completed tasks yet." (when the "Completed" filter is active), or "No tasks yet." (when the "All" filter is active) in place of the table.
 
   ***acceptance tests***
   - When `GET /api/tasks?status=open` returns an empty array, the page should show "No open tasks." and should not render a task table.
