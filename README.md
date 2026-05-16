@@ -35,7 +35,14 @@ This single command starts Postgres via Docker Compose, runs any pending Prisma 
 CODEPLAIN_API_KEY=<your-key> codeplain web.plain --force-render --headless
 ```
 
-After a re-render, re-run `npm install` in `dist/` if `package.json` changed.
+**After every re-render**, run the post-render patch script to fix known renderer gaps (missing `src/lib/utils.ts`, missing deps, wrong dev script):
+
+```bash
+# From the project root
+bash scripts/post-render-patch.sh
+```
+
+Then start the dev server as normal.
 
 ### Stop Postgres
 
