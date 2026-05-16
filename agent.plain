@@ -1,11 +1,12 @@
 ---
 import:
   - practice_domain
-description: Python LiveKit voice agent worker for the dental voice receptionist MVP. Joins a LiveKit room when a simulated call starts, greets the :Patient:, answers questions about services, :Staff:, and hours in English, and books appointments through a STT → LLM → TTS pipeline.
+description: "Python LiveKit voice agent worker for the dental voice receptionist MVP. Joins a LiveKit room when a simulated call starts, greets the patient, answers questions about services, staff, and hours in English, and books appointments through a STT to LLM to TTS pipeline."
 ---
 
 ***definitions***
-- :VoiceAgent: is the voice-agent worker defined by :plainImplementationCode: of this module. :VoiceAgent: connects to a LiveKit room when a :Call: starts, speaks to the :Patient: in English through a speech-to-text → language-model → text-to-speech pipeline, answers questions about :Practice:, :Service:, and :Staff:, books :Appointment: entries on behalf of the :Patient:, and persists transcript and summary back into the :Call: record.
+- :VoiceAgent: is the voice-agent worker implemented by this module. :VoiceAgent: connects to a LiveKit room when a :Call: starts, speaks to the :Patient: in English through a speech-to-text, language-model, text-to-speech pipeline, answers questions about :Practice:, :Service:, and :Staff:, books :Appointment: entries on behalf of the :Patient:, and persists transcript and summary back into the :Call: record.
+- :WebApp: is the running web application that :VoiceAgent: communicates with over HTTP during a :Call:. :WebApp: hosts the practice, service, staff, availability, appointment, and call HTTP APIs that :VoiceAgent: reads and writes.
 
 ***implementation reqs***
 
