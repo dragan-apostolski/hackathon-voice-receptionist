@@ -7,6 +7,7 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 
 ***definitions***
 - :AdminSurface: is the browser-facing part of :WebApp: used by :PracticeAdmin: to manage :Practice:, :Service:, :Staff:, :WorkingHours:, :Appointment:, and :Call: information.
+- :AdminDashboard: is the admin overview page of :AdminSurface:. It helps :PracticeAdmin: see setup status and navigate to the detailed admin pages.
 
 ***implementation reqs***
 - :Implementation: of :WebApp: should be a Next.js application using TypeScript, React, and Node.js.
@@ -58,12 +59,12 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   ***acceptance tests***
   - After a valid `PUT /api/practice`, a later `GET /api/practice` after a :WebApp: restart should return the saved practice JSON.
   - A `PUT /api/practice` request with an empty `name` should return HTTP 400 and should not overwrite the previously saved practice row.
-- Add the admin practice page to :WebApp: at the route `GET /admin`.
+- Add the admin practice page to :WebApp: at the route `GET /admin/practice`.
   - The page is an HTML page that lets :PracticeAdmin: view the single :Practice: row in an editable form. No submit action is wired yet by this spec.
   - On page load the page calls `GET /api/practice` and pre-fills its form fields with the returned values; if the response is `{}` all fields start empty.
   - The form has labelled inputs for `name`, `address`, `phoneDisplay`, and `greetingTemplate` (all text inputs), and a repeatable list of HoursOfOperation rows where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` input, and a `closeTime` input.
   - Above the HoursOfOperation list there is an "Add day" button that appends a new empty row; each row has a "Remove" button that deletes that row.
-- Wire up saving on the admin practice page at `GET /admin`.
+- Wire up saving on the admin practice page at `GET /admin/practice`.
   - Add a "Save" button below the form.
   - Clicking "Save" sends `PUT /api/practice` with the current form values as a JSON body matching the shape used by `GET /api/practice`.
   - On HTTP 200 from PUT the page shows a "Saved" confirmation banner above the form for at least 3 seconds before auto-dismissing.
@@ -247,10 +248,21 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - When `GET /api/calls/:id` returns HTTP 404, the page should show "Call not found." and a link back to `/admin/calls`.
   - When the returned transcript is empty, the page should show "Transcript is empty." and should not render transcript turns.
 - Add a top navigation bar to every admin page in :WebApp:.
-  - Every page whose path begins with `/admin` renders a navigation bar at the top of the page containing five links: "Practice" → `/admin`, "Services" → `/admin/services`, "Staff" → `/admin/staff`, "Appointments" → `/admin/appointments`, "Call log" → `/admin/calls`.
-  - The link whose target matches the current page (or the closest parent path under `/admin/staff/:id/hours` → "Staff", and `/admin/calls/:id` → "Call log") is rendered with a visually distinct active style (for example a bold weight and an underline).
+  - Every page whose path begins with `/admin` renders a navigation bar at the top of the page containing six links: "Dashboard" -> `/admin`, "Practice" -> `/admin/practice`, "Services" -> `/admin/services`, "Staff" -> `/admin/staff`, "Appointments" -> `/admin/appointments`, "Call log" -> `/admin/calls`.
+  - The link whose target matches the current page (or the closest parent path under `/admin/staff/:id/hours` -> "Staff", and `/admin/calls/:id` -> "Call log") is rendered with a visually distinct active style (for example a bold weight and an underline).
   - The navigation bar replaces any prior per-page "Back to admin" or "Back to call log" header link defined by earlier specs.
 
   ***acceptance tests***
   - On `/admin/staff/example-id/hours`, the "Staff" navigation link should have the active style and no "Back to admin" link should be rendered.
   - On `/admin/calls/example-id`, the "Call log" navigation link should have the active style and no "Back to call log" link should be rendered.
+- Add the admin dashboard page to :WebApp: at the route `GET /admin`.
+  - The page renders :AdminDashboard: as the landing page for :PracticeAdmin:.
+  - On page load the page calls `GET /api/practice`, `GET /api/services`, `GET /api/staff`, `GET /api/appointments`, and `GET /api/calls`.
+  - The page shows a setup section with three status rows: Practice profile, Services, and Staff.
+  - The Practice profile row shows "Complete" when `GET /api/practice` returns a non-empty object, and "Missing" when it returns `{}`.
+  - The Services row shows "Complete" when the services response contains at least one row, and "Missing" when it is empty.
+  - The Staff row shows "Complete" when the staff response contains at least one row, and "Missing" when it is empty.
+  - The page shows four summary counters: total services, total staff, upcoming booked appointments, and total calls.
+  - Upcoming booked appointments count only :Appointment: rows whose `status` is "booked" and whose `startAt` is not earlier than the current local date and time.
+  - The page shows quick links labelled "Edit practice", "Manage services", "Manage staff", "View appointments", and "View call log" that navigate to `/admin/practice`, `/admin/services`, `/admin/staff`, `/admin/appointments`, and `/admin/calls`.
+  - If any dashboard data request fails, the page still renders the navigation bar and shows the text "Dashboard data could not be loaded." in place of the setup section and summary counters.
