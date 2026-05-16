@@ -237,29 +237,29 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
   - `GET /api/appointments` returns HTTP 200 with a JSON array of all :Appointment: rows ordered by `startAt` ascending, with `id` ascending as a tiebreaker.
   - Accepts an optional query parameter `patientPhone` (string). When provided, only rows whose `patientPhone` exactly matches the parameter are returned. When omitted, all rows are returned.
   - Each element has fields: `id` (string), `serviceId` (string), `serviceName` (string, the joined :Service: `Name`), `staffId` (string), `staffName` (string, the joined :Staff: `Name`), `patientPhone` (string), `patientName` (string), `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `endAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"), `status` (string), `createdAt` (ISO 8601 timestamp).
-- Implement the appointment cancel HTTP API on :WebApp:.
-  - `POST /api/appointments/:id/cancel` sets the :Appointment:'s `status` to "cancelled". Returns HTTP 200 with the updated :Appointment: JSON.
+- Implement the appointment update HTTP API on :WebApp:.
+  - `PATCH /api/appointments/:id` accepts a JSON body with one or more of: `status` (string, one of "booked" | "cancelled" | "completed" | "no_show"), `startAt` ("YYYY-MM-DDTHH:MM" local datetime), `endAt` ("YYYY-MM-DDTHH:MM" local datetime), `staffId` (string), `serviceId` (string). At least one field must be present.
+  - When `startAt` is provided (reschedule path): `startAt` must be aligned to a quarter-hour mark (minute 00, 15, 30, or 45). Both `startAt` and `endAt` must be provided together and `endAt` must be strictly after `startAt`. The new `[startAt, endAt)` window must fall within at least one :WorkingHours: entry of the target staff member on the matching day of week, and must not overlap any other "booked" :Appointment: of the same staff member (excluding the appointment being rescheduled). Returns HTTP 409 with body `{"error": "slot unavailable"}` if the window is not available.
+  - When only `status` is provided: if the current status is already the requested status, returns HTTP 409 with body `{"error": "already <status>"}`.
+  - Returns HTTP 200 with the updated appointment's full JSON on success, in the same shape as `GET /api/appointments` list elements (including joined `staffName` and `serviceName`).
+  - Returns HTTP 400 with body `{"error": "<message>"}` if validation fails.
   - Returns HTTP 404 with body `{"error": "not found"}` if no :Appointment: with that `id` exists.
-  - Returns HTTP 409 with body `{"error": "already cancelled"}` if the appointment's `status` is already "cancelled".
-- Implement the appointment reschedule HTTP API on :WebApp:.
-  - `POST /api/appointments/:id/reschedule` accepts a JSON body with `startAt` (ISO 8601 local datetime "YYYY-MM-DDTHH:MM"; required).
-  - Validates that the new `[startAt, startAt + DurationMinutes)` window falls within at least one :WorkingHours: entry of the existing :Appointment:'s StaffRef on the matching day of week, and does not overlap any other :Appointment: of the same StaffRef whose status is "booked" (excluding the appointment being rescheduled itself).
-  - On success, updates the :Appointment:'s `startAt`, `endAt` (recomputed as `startAt` plus the service's `DurationMinutes`), and `status` to "booked". Returns HTTP 200 with the updated :Appointment: JSON.
-  - Returns HTTP 400 with body `{"error": "<message>"}` if `startAt` is missing or not aligned to a quarter-hour mark (minute 00, 15, 30, or 45).
-  - Returns HTTP 404 with body `{"error": "not found"}` if no :Appointment: with that `id` exists.
-  - Returns HTTP 409 with body `{"error": "slot unavailable"}` if the new window is not available.
 - Add the admin appointments page to :WebApp: at the route `GET /admin/appointments`.
-  - On page load the page calls `GET /api/appointments` and renders the returned rows as a read-only table with columns Date, Time, Service, Staff, Patient name, Patient phone, Status, Actions, in the order the API returned them.
-  - Date is formatted as `EEE, MMM d yyyy` (e.g. "Sun, Jan 5 2026"). Time is formatted as the local time range `HH:MM - HH:MM` (e.g. "09:00 - 10:00").
-  - Consecutive rows that share the same Date value are grouped under a date header row that spans the full table width.
-  - Each row whose `status` is "booked" shows a "Cancel" button in the Actions column. Clicking "Cancel" shows an inline confirmation prompt with "Confirm" and "Cancel" buttons. Clicking "Confirm" sends `POST /api/appointments/:id/cancel` and on HTTP 200 updates the row's displayed status to "cancelled" and removes the "Cancel" button. On HTTP 409 the page shows the returned error message near the row.
-  - Rows whose `status` is "cancelled" show no action button and are displayed with a muted/greyed style.
+  - On page load the page calls `GET /api/appointments` and renders the returned rows as a table with columns Time, Service, Staff, Patient Name, Phone, Status, and Actions, grouped by date under bold date-header rows.
+  - Date header rows are formatted `EEE, MMM d yyyy` (e.g. "Sun, Jan 5 2026") and span the full table width. Time cells show the local time range `HH:MM - HH:MM`.
+  - The Status column renders the status as a styled badge: "booked" → teal, "cancelled" → red/muted, "completed" → green, "no_show" → amber.
+  - The Actions column shows three buttons only for rows whose status is "booked": "Cancel", "No-show", and "Reschedule".
+    - "Cancel" sends `PATCH /api/appointments/:id` with `{"status":"cancelled"}`; on HTTP 200 the badge updates and buttons disappear immediately.
+    - "No-show" sends `PATCH /api/appointments/:id` with `{"status":"no_show"}`; on HTTP 200 the badge updates and buttons disappear immediately.
+    - "Reschedule" expands an inline edit form inside the row with date, start-time, end-time, staff dropdown, and service dropdown, all pre-filled. Submitting sends `PATCH /api/appointments/:id` with the new `startAt`, `endAt`, `staffId`, `serviceId`. On HTTP 200 the row updates in place. On HTTP 409 the form shows "slot unavailable". A "Cancel" link dismisses the form without saving.
+  - Cancelled, completed, and no-show rows display their status badge but no action buttons. Cancelled rows are displayed with a muted style.
+  - Each appointment row is a dedicated client component (`AppointmentTableRow`) that owns its own status, edit-mode, field values, and loading state, following the row-level component pattern.
   - If the API returns an empty array, the page shows the text "No appointments yet." in place of the table.
-  - The page has a header bar with a link labelled "Back to admin" pointing to `/admin`.
 
   ***acceptance tests***
   - When `GET /api/appointments` returns an empty array, the page should show "No appointments yet." and should not render an appointments table.
   - Consecutive appointments on the same date should appear under one shared date header.
+  - After clicking "Cancel" on a booked appointment row that returns HTTP 200, the row's status badge should change to "cancelled" and the action buttons should disappear immediately.
 - Implement the call log read HTTP API on :WebApp:.
   - `GET /api/calls` returns HTTP 200 with a JSON array of all :Call: rows ordered by `startedAt` descending. Each element has fields `id`, `patientPhone`, `startedAt`, `endedAt` (nullable), `status`, `summary` (nullable), `appointmentId` (nullable), `outcome` (nullable — absent or null while in progress, one of "resolved" | "needs_callback" | "needs_action" once ended). The `transcript` field is omitted from the list response.
   - The endpoint must not read, select, or return a `createdAt` field for :Call: rows.
