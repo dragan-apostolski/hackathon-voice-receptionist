@@ -17,6 +17,9 @@ description: Personality, tone, and interaction-behaviour concepts for the denta
 - :SensitiveContext: is a situation detected during a call that requires the agent to adapt its behaviour.
   - Values: `anxious` (patient signals worry about a procedure, visit, or diagnosis), `urgent` (patient describes pain, swelling, or an acute dental emergency), `confused` (patient uses unclear phrasing, contradicts themselves, or moves slowly through the conversation), `complaint` (patient expresses dissatisfaction with the practice, a past experience, or the current interaction).
 
+- :AgentGender: is a configuration value that controls which ElevenLabs voice preset the agent uses, influencing the perceived gender of the agent's voice.
+  - Values: `female` (default), `male`.
+
 ***implementation reqs***
 - The personality configuration is injected as the first block of the agent system prompt at session start. The practice's Name, GreetingStyle, ToneProfile, ClosingStyle, CustomGreeting, and CustomClosing values are substituted into the appropriate tokens before injection.
 - Hard behavioural rules — no clinical opinions, no invented appointment availability, no unsolicited use of the patient's name, no judgment of patient habits, no abrupt call endings — are injected unconditionally into the system prompt and cannot be overridden by any provider configuration value.

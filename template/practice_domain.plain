@@ -21,6 +21,8 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - ToneProfile - a :ToneProfile: value controlling the agent's register throughout calls (required; default: `friendly`)
   - ClosingStyle - a :ClosingStyle: value selecting the closing line format the agent uses (required; default: `standard`)
   - CustomClosing - a free-text override used verbatim when ClosingStyle is `custom` (optional)
+  - AgentGender - a :AgentGender: value selecting the ElevenLabs voice preset (optional; default: `female`)
+  - AgentName - the name the agent uses to introduce itself at the start of a call, e.g. "Alex" or "Maya" (optional; if unset the agent does not introduce itself by name)
 - :Service: is something the :Practice: offers to a :Patient:, such as a cleaning, a filling, or a checkup. :Service: has:
   - Name - the public name of the service (required, non-empty)
   - DurationMinutes - how long the service takes, as a positive integer multiple of 15 (required)

@@ -47,9 +47,9 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 - Implement the practice-info HTTP API on :WebApp:.
   - `GET /api/practice` returns HTTP 200 with the JSON representation of the single :Practice: row, or HTTP 200 with body `{}` if no row exists yet.
   - `PUT /api/practice` accepts a JSON body and upserts the single :Practice: row.
-  - The JSON representation has fields: `name` (string), `address` (string), `phoneDisplay` (string), `hoursOfOperation` (array of objects each with `dayOfWeek` of "Monday".."Sunday", `openTime` "HH:MM", `closeTime` "HH:MM"), `greetingTemplate` (string).
+  - The JSON representation has fields: `name` (string), `address` (string), `phoneDisplay` (string), `hoursOfOperation` (array of objects each with `dayOfWeek` of "Monday".."Sunday", `openTime` "HH:MM", `closeTime` "HH:MM"), `greetingStyle` (string, one of "warm" | "professional" | "friendly_first_name" | "custom"; default "warm"), `customGreeting` (string, optional), `toneProfile` (string, one of "friendly" | "professional" | "gentle"; default "friendly"), `closingStyle` (string, one of "standard" | "appointment_focused" | "custom"; default "standard"), `customClosing` (string, optional), `agentGender` (string, one of "female" | "male"; default "female"), `agentName` (string, optional).
   - PUT returns HTTP 200 with the saved JSON on success.
-  - PUT returns HTTP 400 with body `{"error": "<message>"}` if any required attribute is missing or empty, or if any time string is not a valid "HH:MM" 24-hour value.
+  - PUT returns HTTP 400 with body `{"error": "<message>"}` if `name`, `address`, or `phoneDisplay` is missing or empty, if any time string is not a valid "HH:MM" 24-hour value, or if `greetingStyle`, `toneProfile`, `closingStyle`, or `agentGender` is set to a value outside its allowed set.
   - The :Practice: row is persisted in the data store with one column per attribute, and survives :WebApp: restarts.
 
   ***acceptance tests***
@@ -58,8 +58,10 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 - Add the admin practice page to :WebApp: at the route `GET /admin/practice`.
   - The page is an HTML page that lets :PracticeAdmin: view the single :Practice: row in an editable form. No submit action is wired yet by this spec.
   - On page load the page calls `GET /api/practice` and pre-fills its form fields with the returned values; if the response is `{}` all fields start empty.
-  - The form has labelled inputs for `name`, `address`, `phoneDisplay`, and `greetingTemplate` (all text inputs), and a repeatable list of HoursOfOperation rows where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` input, and a `closeTime` input.
+  - The form has labelled text inputs for `name`, `address`, and `phoneDisplay`, a repeatable list of HoursOfOperation rows where each row has a day-of-week dropdown (Monday..Sunday), an `openTime` input, and a `closeTime` input, an "Agent Voice" section, and an "Agent Personality" section.
   - Above the HoursOfOperation list there is an "Add day" button that appends a new empty row; each row has a "Remove" button that deletes that row.
+  - The "Agent Voice" section contains: a labelled dropdown for `agentGender` with options "Female" (value "female", default) and "Male" (value "male"); and a labelled text input for `agentName` (placeholder "e.g. Alex, Maya") with a hint "If set, the agent introduces itself by this name at the start of each call." The `agentName` field is optional.
+  - The "Agent Personality" section contains: a labelled dropdown for `greetingStyle` with options "Warm" (value "warm", default), "Professional" (value "professional"), "Friendly" (value "friendly_first_name"), "Custom" (value "custom"); a labelled text input for `customGreeting` that is only shown when `greetingStyle` is "custom"; a labelled dropdown for `toneProfile` with options "Friendly" (value "friendly", default), "Professional" (value "professional"), "Gentle" (value "gentle"); a labelled dropdown for `closingStyle` with options "Standard" (value "standard", default), "Appointment-focused" (value "appointment_focused"), "Custom" (value "custom"); and a labelled text input for `customClosing` that is only shown when `closingStyle` is "custom".
 - Wire up saving on the admin practice page at `GET /admin/practice`.
   - Add a "Save" button below the form.
   - Clicking "Save" sends `PUT /api/practice` with the current form values as a JSON body matching the shape used by `GET /api/practice`.
@@ -266,7 +268,7 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 - Implement the setup-data part of the demo seed HTTP API on :WebApp:.
   - `POST /api/demo/seed` creates or updates the setup records in :DemoSeedData: and returns HTTP 200 with a JSON summary object.
   - The summary object has top-level keys `practice`, `services`, `staff`, and `workingHours`. Each value has `created` and `updated` integer counts.
-  - If no :Practice: row exists, the endpoint creates a demo :Practice: with name `Bright Smile Dental Studio`, address `1250 Maple Avenue, Springfield`, PhoneDisplay `(555) 014-2378`, GreetingTemplate `Hello, thank you for calling Bright Smile Dental Studio. How can I help you today?`, and HoursOfOperation Monday through Friday from `09:00` to `17:00`.
+  - If no :Practice: row exists, the endpoint creates a demo :Practice: with name `Bright Smile Dental Studio`, address `1250 Maple Avenue, Springfield`, PhoneDisplay `(555) 014-2378`, GreetingStyle `warm`, ToneProfile `friendly`, ClosingStyle `standard`, AgentGender `female`, AgentName `Maya`, and HoursOfOperation Monday through Friday from `09:00` to `17:00`.
   - If a :Practice: row already exists, the endpoint preserves it and reports zero practice records created and zero practice records updated.
   - The endpoint creates or updates three demo :Service: rows: `Routine Cleaning` with DurationMinutes 60 and PriceCents 12000; `Dental Checkup` with DurationMinutes 30 and PriceCents 8500; `Teeth Whitening` with DurationMinutes 90 and PriceCents 25000. Each demo :Service: has a non-empty English description suitable for the voice agent to read.
   - The endpoint creates or updates three demo :Staff: rows: `Dr. Maya Chen` with Role `Dentist`; `Dr. Oliver Grant` with Role `Dentist`; and `Sofia Ramirez` with Role `Hygienist`. Each demo :Staff: row has a short non-empty English bio.
