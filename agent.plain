@@ -60,6 +60,11 @@ description: "Python LiveKit voice agent worker for the dental voice receptionis
   - The agent can answer questions about: the practice name and address; the phone number to reach the practice (using :Practice:.PhoneDisplay); the opening and closing times for each day of the week (from :Practice:.HoursOfOperation); the services offered, their durations in minutes, prices in US dollars, and descriptions (from the :Service: list); the names, roles, and bios of staff members (from the :Staff: list).
   - The agent always responds in English.
   - The agent never asks the :Patient: about insurance, medical history, or payment, and never volunteers information that is not present in the loaded context.
+- Promise a callback and create a :StaffTask: when the :Patient: asks something the agent cannot answer.
+  - When the :Patient: asks a question that is not covered by the loaded context (e.g. questions about insurance, billing, specific clinical advice, prescription queries, or any topic not present in the practice, service, or staff data), :VoiceAgent: does not guess or improvise an answer.
+  - :VoiceAgent: acknowledges the question in one sentence and says "I'll make sure someone from our team follows up with you."
+  - :VoiceAgent: then sends `POST /api/tasks` to :WebApp: with body `{"callId": "<call_id>", "patientName": "<the patient's name if they have provided it during this call, otherwise empty string>", "description": "Patient asked: <concise one-sentence summary of the question>", "type": "callback", "priority": "normal"}`. If the :Patient: earlier matched the `urgent` :SensitiveContext: during this :Call:, the priority is "high" instead of "normal".
+  - Task creation is best-effort: any non-201 response is logged but does not interrupt the call.
 - Append each conversational turn to the :Call: transcript via the web app.
   - Each time the speech-to-text engine produces a final transcription of a :Patient: utterance, :VoiceAgent: sends `POST /api/calls/<call_id>/transcript` to :WebApp: with body `{"speaker": "patient", "text": "<transcription>"}`.
   - Each time :VoiceAgent: emits a spoken response, it sends `POST /api/calls/<call_id>/transcript` to :WebApp: with body `{"speaker": "agent", "text": "<spoken text>"}`.
@@ -78,7 +83,9 @@ description: "Python LiveKit voice agent worker for the dental voice receptionis
   - On any other non-success response the agent apologises and asks the :Patient: to try again later; no :Appointment: is created.
 - Finalize the :Call: when the :Patient: hangs up.
   - When the LiveKit room is disconnected from :VoiceAgent:'s perspective (the :Patient: left the room or the room was otherwise closed), :VoiceAgent: uses the language-model engine to write a one or two sentence English summary of the conversation that captures the :Patient:'s primary question and any booking outcome.
-  - :VoiceAgent: then sends `POST /api/calls/<call_id>/end` to :WebApp: with body `{"summary": "<generated summary>", "appointmentId": "<stored appointment id, or null>"}`.
+  - :VoiceAgent: also uses the language-model engine to classify the call outcome based on the full conversation: `"resolved"` if the patient's question was answered and/or an appointment was booked with no items explicitly left for staff follow-up; `"needs_callback"` if the agent promised a callback at least once during the call; `"needs_action"` if the patient raised a matter requiring staff attention other than a direct callback (e.g. a complaint, a prescription question, a clinical referral).
+  - If the classified outcome is `"needs_callback"` or `"needs_action"` but no :StaffTask: was successfully created during the call (e.g. the in-call task POST failed), :VoiceAgent: sends a single `POST /api/tasks` with `patientName` (if known), a description derived from the call summary, and `type` set to "callback" for `"needs_callback"` or "action" for `"needs_action"`. This retry fires before the end-call request.
+  - :VoiceAgent: then sends `POST /api/calls/<call_id>/end` to :WebApp: with body `{"summary": "<generated summary>", "appointmentId": "<stored appointment id, or null>", "outcome": "<classified outcome>"}`.
   - After the end call returns (or after a 5-second timeout if the call hangs), :VoiceAgent: releases all resources for that session and is ready to handle further LiveKit dispatch signals.
 - Apply core character and language rules to every :VoiceAgent: response.
   - All spoken output uses plain English, short sentences, active voice, and natural contractions.

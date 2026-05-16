@@ -54,3 +54,14 @@ description: Shared domain concepts for the dental voice receptionist project â€
   - Transcript - the full back-and-forth between :Patient: and the voice agent, in chronological order, with each line labelled by speaker (required, may be empty while the call has just started)
   - Summary - a short English summary of the call written at the end of the call by the voice agent (optional, present only when Status is "ended")
   - AppointmentRef - the :Appointment: that was created during this call, if any (optional)
+  - Outcome - one of "resolved" (the :Patient:'s questions were answered and/or a booking was completed with no outstanding items), "needs_callback" (the agent explicitly promised a staff member would call the :Patient: back), or "needs_action" (some other item requires staff follow-up). Present only when Status is "ended"; optional while the call is in progress.
+- :StaffTask: is an actionable item created during or after a :Call: that requires follow-up by :PracticeAdmin: or another staff member. :StaffTask: has:
+  - CallRef - the :Call: this task was generated from (required)
+  - PatientPhone - copied from the :Call: for quick reference (required, non-empty)
+  - PatientName - the name the :Patient: stated during the :Call:, if they gave one; empty string if the patient did not identify themselves (optional; defaults to empty string)
+  - Description - a plain English sentence describing what action is needed (required, non-empty)
+  - Type - one of "callback" (a staff member should call the patient back) or "action" (some other staff action is needed, e.g. an insurance question or a clinical referral) (required; default "callback")
+  - Priority - one of "normal" or "high"; "high" is used when the :Patient: expressed urgency during the :Call: (required; default "normal")
+  - Status - one of "open" (not yet handled) or "done" (handled by staff) (required; default "open")
+  - CreatedAt - the server timestamp when the task was created (required)
+  - ResolvedAt - the server timestamp when the task was marked "done" (optional; absent while open)
