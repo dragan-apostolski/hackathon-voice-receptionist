@@ -12,7 +12,7 @@ There is **no hand-written application code** — generated code under `plain_mo
 
 Two top modules, each with its own `.plain` spec and `*.config.yaml` at the repo root:
 
-- **`agent.plain` → `plain_modules/agent/`** — Python 3.11 LiveKit Agents worker. STT (Deepgram) → LLM (OpenAI) → TTS (ElevenLabs) pipeline; no DB access; talks to the web app only over HTTP via `httpx`. Dependency manager: `uv` (with `pyproject.toml` + `uv.lock`). Lint/format: `ruff`. Type check: `mypy --strict`.
+- **`agent.plain` → `plain_modules/agent/`** — Python 3.11 LiveKit Agents worker. STT (Deepgram) → LLM (Gemini) → TTS (ElevenLabs) pipeline; no DB access; talks to the web app only over HTTP via `httpx`. Dependency manager: `uv` (with `pyproject.toml` + `uv.lock`). Lint/format: `ruff`. Type check: `mypy --strict`.
 - **`web.plain` → `plain_modules/web/`** — Next.js 15 (App Router) + TypeScript strict, Tailwind + shadcn/ui, Prisma against Postgres 16 in `docker-compose.yml`, LiveKit token minting via `livekit-server-sdk`, browser client via `@livekit/components-react` + `livekit-client`. Validation with `zod`. Layered: `src/app` (routes) → `src/services` (logic) → `src/repositories` (Prisma) → `src/lib` (cross-cutting). Tests with Vitest.
 
 Both modules import shared definitions:
