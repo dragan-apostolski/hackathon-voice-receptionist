@@ -31,6 +31,7 @@ description: "Web app for the dental voice receptionist MVP (single practice, no
 - Local development configuration lives in `.env.local` (gitignored). Required env vars are documented in a committed `.env.example` file: `DATABASE_URL`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `PRACTICE_TIMEZONE`.
 - Code style is enforced with ESLint and Prettier using the Next.js recommended configurations. CI-time formatting and lint must pass with no warnings.
 - Admin table components that combine display, inline-editing, and delete-confirmation state must delegate per-row interactive logic to a dedicated row-level client component (e.g. `StaffTableRow`, `ServiceTableRow`). The parent table component renders the row list and passes mutation callbacks; the row component owns its own edit/delete UI state. This keeps each component function short and avoids JSX nesting errors from oversized render functions.
+- Icons must be imported exclusively from `lucide-react`. The renderer must never define a local fallback icon component (e.g. a hand-written SVG function) with the same name as an imported lucide icon in the same file — doing so causes a duplicate-identifier compile error. If a lucide icon is imported at the top of a file, no local definition of that name may appear anywhere else in the same file.
 - :WebApp: should include :UnitTests: covering services and repositories at minimum.
 
 ***test reqs***
