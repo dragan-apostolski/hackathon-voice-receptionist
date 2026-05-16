@@ -1,4 +1,11 @@
 .claude/
 skills-lock.json
 .DS_Store
-/dist
+
+# codeplain generated artifacts
+/plain_modules/
+/conformance_tests/
+/dist/
+/dist_conformance_tests/
+/.tmp/
+/codeplain.log
